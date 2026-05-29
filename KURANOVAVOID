@@ -1,0 +1,921 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local LocalizationService = game:GetService("LocalizationService")
+local TweenService = game:GetService("TweenService")
+
+local UserLang = "pt"
+pcall(function()
+	UserLang = LocalizationService.RobloxLocaleId:sub(1, 2):lower()
+end)
+
+local function Translate(text)
+	if UserLang == "pt" then return text end
+	if not text or text == "" then return text end
+	
+	if string.match(text, "^[:;xX=]['%-]?([3%)(%]%[%D])+$") or string.match(text, "^%b{}") then
+		return text
+	end
+
+	local translatedText = text
+	local success = pcall(function()
+		local encodedText = HttpService:UrlEncode(text)
+		local url = string.format("https://translate.googleapis.com/translate_a/single?client=gtx&sl=pt&tl=%s&dt=t&q=%s", UserLang, encodedText)
+		
+		local req = (syn and syn.request) or (http and http.request) or request
+		if req then
+			local res = req({Url = url, Method = "GET"})
+			if res.StatusCode == 200 then
+				local data = HttpService:JSONDecode(res.Body)
+				if data and data[1] and data[1][1] and data[1][1][1] then
+					translatedText = data[1][1][1]
+				end
+			end
+		end
+	end)
+	
+	return success and translatedText or text
+end
+
+-- BASE INTERFACE
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KuroNovaVoidGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- CONFIGURAÇÕES DE IDENTIDADE DO DONO (Username Real)
+local OwnerName = "JooJxninja_cont1"
+local IsMeTheOwner = (LocalPlayer.Name == OwnerName)
+
+-- =============================================================================
+-- SISTEMA DE CONFIGURAÇÃO (SALVAR / CARREGAR)
+-- =============================================================================
+local ConfigFileName = "KuroNovaVoid_Config.json"
+
+TargetValueSpeed = 16
+SpeedActive = false
+InfiniteJumpActive = false
+NoclipActive = false
+
+AimbotSystemActive = false
+AimbotLockActive = false
+FovRadiusValue = 100
+CurrentAimbotTarget = nil
+CurrentTargetHighlight = nil
+AimbotMode = "Dynamic"
+AimbotTargetFilter = "Players" 
+
+AppleSystemEquipped = false
+ShieldSystemEquipped = false
+AppleEffectActive = false
+ShieldEffectActive = false
+local COOLDOWN = 1.4
+
+local function SaveSettings()
+	local settingsTable = {
+		TargetValueSpeed = TargetValueSpeed,
+		SpeedActive = SpeedActive,
+		InfiniteJumpActive = InfiniteJumpActive,
+		NoclipActive = NoclipActive,
+		AimbotSystemActive = AimbotSystemActive,
+		FovRadiusValue = FovRadiusValue,
+		AimbotMode = AimbotMode,
+		AimbotTargetFilter = AimbotTargetFilter
+	}
+	
+	pcall(function()
+		if writefile then
+			local json = HttpService:JSONEncode(settingsTable)
+			writefile(ConfigFileName, json)
+		end
+	end)
+end
+
+local function LoadSettings()
+	pcall(function()
+		if isfile and isfile(ConfigFileName) and readfile then
+			local json = readfile(ConfigFileName)
+			local settingsTable = HttpService:JSONDecode(json)
+			if settingsTable then
+				if settingsTable.TargetValueSpeed ~= nil then TargetValueSpeed = settingsTable.TargetValueSpeed end
+				if settingsTable.SpeedActive ~= nil then SpeedActive = settingsTable.SpeedActive end
+				if settingsTable.InfiniteJumpActive ~= nil then InfiniteJumpActive = settingsTable.InfiniteJumpActive end
+				if settingsTable.NoclipActive ~= nil then NoclipActive = settingsTable.NoclipActive end
+				if settingsTable.AimbotSystemActive ~= nil then AimbotSystemActive = settingsTable.AimbotSystemActive end
+				if settingsTable.FovRadiusValue ~= nil then FovRadiusValue = settingsTable.FovRadiusValue end
+				if settingsTable.AimbotMode ~= nil then AimbotMode = settingsTable.AimbotMode end
+				if settingsTable.AimbotTargetFilter ~= nil then AimbotTargetFilter = settingsTable.AimbotTargetFilter end
+			end
+		end
+	end)
+end
+
+LoadSettings()
+
+-- =============================================================================
+-- SISTEMA DE INTRODUÇÃO: CAIXA ESTILIZADA
+-- =============================================================================
+local IntroCard = Instance.new("Frame")
+IntroCard.Name = "IntroMessageCard"
+IntroCard.Size = UDim2.new(0, 340, 0, 85)
+IntroCard.Position = UDim2.new(0.5, -170, 1, 50)
+IntroCard.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
+IntroCard.BackgroundTransparency = 0.15
+IntroCard.ZIndex = 100
+IntroCard.Parent = ScreenGui
+
+local cardCorner = Instance.new("UICorner")
+cardCorner.CornerRadius = UDim.new(0, 10)
+cardCorner.Parent = IntroCard
+
+local cardStroke = Instance.new("UIStroke")
+cardStroke.Thickness = 2
+cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+cardStroke.Parent = IntroCard
+
+local uigradient = Instance.new("UIGradient")
+uigradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 120, 120))
+})
+uigradient.Rotation = 45
+uigradient.Parent = IntroCard
+
+local StatusIcon = Instance.new("TextLabel")
+StatusIcon.Size = UDim2.new(0, 40, 1, 0)
+StatusIcon.Position = UDim2.new(0, 12, 0, 0)
+StatusIcon.BackgroundTransparency = 1
+StatusIcon.Font = Enum.Font.SourceSansBold
+StatusIcon.TextSize = 24
+StatusIcon.ZIndex = 101
+StatusIcon.Parent = IntroCard
+
+local IntroText = Instance.new("TextLabel")
+IntroText.Size = UDim2.new(1, -75, 1, 0)
+IntroText.Position = UDim2.new(0, 60, 0, 0)
+IntroText.BackgroundTransparency = 1
+IntroText.Font = Enum.Font.SourceSansBold
+IntroText.TextSize = 15
+IntroText.TextWrapped = true
+IntroText.TextXAlignment = Enum.TextXAlignment.Left
+IntroText.ZIndex = 101
+IntroText.Parent = IntroCard
+
+local isOwnerPresent = false
+task.spawn(function()
+	for i = 1, 20 do
+		if Players:FindFirstChild(OwnerName) then
+			isOwnerPresent = true
+			break
+		end
+		task.wait(0.5)
+	end
+
+	if isOwnerPresent then
+		StatusIcon.Text = "👑"
+		StatusIcon.TextColor3 = Color3.fromRGB(255, 0, 50)
+		IntroText.Text = "DIVINITY DETECTED\nA supreme power is active in this server."
+		IntroText.TextColor3 = Color3.fromRGB(255, 255, 255)
+		cardStroke.Color = Color3.fromRGB(255, 0, 50)
+	else
+		StatusIcon.Text = "⚡"
+		StatusIcon.TextColor3 = Color3.fromRGB(255, 200, 0)
+		IntroText.Text = "CORE INJECTED\nEnjoy a fraction of a mere power..."
+		IntroText.TextColor3 = Color3.fromRGB(220, 220, 220)
+		cardStroke.Color = Color3.fromRGB(255, 200, 0)
+	end
+
+	task.spawn(function()
+		while IntroCard and IntroCard.Parent do
+			local pulseUp = TweenService:Create(cardStroke, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 3.5})
+			local pulseDown = TweenService:Create(cardStroke, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 1.8})
+			pulseUp:Play() pulseUp.Completed:Wait()
+			pulseDown:Play() pulseDown.Completed:Wait()
+		end
+	end)
+
+	task.wait(0.5)
+	local tweenIn = TweenService:Create(IntroCard, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -170, 0.70, 0)})
+	tweenIn:Play()
+	
+	task.wait(4.5)
+	local tweenOut = TweenService:Create(IntroCard, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -170, 1, 50), BackgroundTransparency = 1})
+	TweenService:Create(IntroText, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+	TweenService:Create(StatusIcon, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+	TweenService:Create(cardStroke, TweenInfo.new(0.4), {Transparency = 1}):Play()
+	
+	tweenOut:Play()
+	tweenOut.Completed:Connect(function() IntroCard:Destroy() end)
+end)
+
+-- =============================================================================
+-- VISUAL DIVINO PERMANENTE (DONO COM TÍTULO "OWNER" PÓS-MORTE)
+-- =============================================================================
+local function applyGodVisual(char)
+	task.wait(0.5)
+	if not char or not char.Parent then return end
+	local plr = Players:GetPlayerFromCharacter(char)
+	if not plr or plr.Name ~= OwnerName then return end
+
+	-- 1. Aplica o Brilho Branco Neon em todo o corpo
+	if not IsMeTheOwner then
+		for _, obj in ipairs(char:GetDescendants()) do
+			if obj:IsA("Clothing") or obj:IsA("ShirtGraphic") or obj:IsA("BodyColors") or obj:IsA("Accessory") then
+				obj:Destroy()
+			elseif obj:IsA("BasePart") then
+				obj.Color = Color3.fromRGB(255, 255, 255)
+				obj.Material = Enum.Material.Neon
+			end
+		end
+	else
+		for _, obj in ipairs(char:GetDescendants()) do
+			if obj:IsA("BasePart") then
+				obj.Color = Color3.fromRGB(255, 255, 255)
+				obj.Material = Enum.Material.Neon
+			end
+		end
+	end
+
+	local godHighlight = char:FindFirstChild("GodGlowEffect") or Instance.new("Highlight")
+	godHighlight.Name = "GodGlowEffect"
+	godHighlight.FillColor = Color3.fromRGB(255, 255, 255)
+	godHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	godHighlight.FillTransparency = 0.2
+	godHighlight.OutlineTransparency = 0
+	godHighlight.Adornee = char
+	godHighlight.Parent = char
+
+	-- 2. Criação do Título "OWNER" em cima da cabeça
+	local head = char:WaitForChild("Head", 5)
+	if head then
+		if head:FindFirstChild("OwnerTitleGui") then head.OwnerTitleGui:Destroy() end
+
+		local billGui = Instance.new("BillboardGui")
+		billGui.Name = "OwnerTitleGui"
+		billGui.Size = UDim2.new(0, 200, 0, 50)
+		billGui.Adornee = head
+		billGui.AlwaysOnTop = true
+		billGui.StudsOffset = Vector3.new(0, 2.5, 0)
+		billGui.Parent = head
+
+		local titleLabel = Instance.new("TextLabel")
+		titleLabel.Size = UDim2.new(1, 0, 1, 0)
+		titleLabel.BackgroundTransparency = 1
+		titleLabel.Text = "👑 OWNER 👑"
+		titleLabel.TextColor3 = Color3.fromRGB(255, 0, 50)
+		titleLabel.Font = Enum.Font.SourceSansBold
+		titleLabel.TextSize = 26
+		titleLabel.TextStrokeTransparency = 0
+		titleLabel.TextStrokeColor3 = Color3.fromRGB(255, 200, 0)
+		titleLabel.Parent = billGui
+		
+		task.spawn(function()
+			while billGui and billGui.Parent do
+				TweenService:Create(titleLabel, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextSize = 29}):Play()
+				task.wait(1)
+				TweenService:Create(titleLabel, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextSize = 25}):Play()
+				task.wait(1)
+			end
+		end)
+	end
+end
+
+local function monitorOwner(p)
+	if p.Name == OwnerName then
+		if p.Character then task.spawn(applyGodVisual, p.Character) end
+		p.CharacterAdded:Connect(function(char)
+			task.spawn(applyGodVisual, char)
+		end)
+	end
+end
+
+local currentOwnerPlayer = Players:FindFirstChild(OwnerName)
+if currentOwnerPlayer then monitorOwner(currentOwnerPlayer) end
+Players.PlayerAdded:Connect(monitorOwner)
+
+-- =============================================================================
+-- SISTEMA ANTIDISTÚRBIO SUPREMO
+-- =============================================================================
+local airTimeCounter = 0
+task.spawn(function()
+	while true do
+		task.wait(0.5)
+		local ownerPlr = Players:FindFirstChild(OwnerName)
+		if ownerPlr and ownerPlr.Character and ownerPlr.Character:FindFirstChild("Humanoid") then
+			local hum = ownerPlr.Character.Humanoid
+			if hum.FloorMaterial == Enum.Material.Air then
+				airTimeCounter = airTimeCounter + 0.5
+				if airTimeCounter >= 10 then
+					if not IsMeTheOwner then
+						LocalPlayer:Kick("A God is playing, do not disturb (Gravity Defied).")
+					end
+					break
+				end
+			else
+				airTimeCounter = 0
+			end
+		else
+			airTimeCounter = 0
+		end
+	end
+end)
+
+local function showAimWarning()
+	if ScreenGui:FindFirstChild("GodAimWarning") then return end
+	local WarnFrame = Instance.new("Frame")
+	WarnFrame.Name = "GodAimWarning"
+	WarnFrame.Size = UDim2.new(0, 320, 0, 60)
+	WarnFrame.Position = UDim2.new(0.5, -160, 1, 50)
+	WarnFrame.BackgroundColor3 = Color3.fromRGB(20, 5, 7)
+	WarnFrame.BackgroundTransparency = 0.1
+	WarnFrame.Parent = ScreenGui
+	
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 0, 50)
+	stroke.Thickness = 2
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = WarnFrame
+	Instance.new("UICorner", WarnFrame).CornerRadius = UDim.new(0, 8)
+	
+	local wGradient = Instance.new("UIGradient")
+	wGradient.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255,255,255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(130,130,130))})
+	wGradient.Rotation = 45
+	wGradient.Parent = WarnFrame
+
+	local WarnTxt = Instance.new("TextLabel")
+	WarnTxt.Size = UDim2.new(1, -20, 1, 0)
+	WarnTxt.Position = UDim2.new(0, 10, 0, 0)
+	WarnTxt.BackgroundTransparency = 1
+	WarnTxt.Text = "⚠️ TARGETING A GOD IS FORBIDDEN\nYour locking system has been blocked."
+	WarnTxt.TextColor3 = Color3.fromRGB(255, 230, 230)
+	WarnTxt.Font = Enum.Font.SourceSansBold
+	WarnTxt.TextSize = 14
+	WarnTxt.TextWrapped = true
+	WarnTxt.Parent = WarnFrame
+	
+	TweenService:Create(WarnFrame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -160, 0.70, -75)}):Play()
+	
+	task.wait(3)
+	local f = TweenService:Create(WarnFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -160, 1, 50), BackgroundTransparency = 1})
+	TweenService:Create(WarnTxt, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+	TweenService:Create(stroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+	f:Play() f.Completed:Connect(function() WarnFrame:Destroy() end)
+end
+
+local function getInventory() return LocalPlayer:FindFirstChild("Inventory") or LocalPlayer:FindFirstChildOfClass("Backpack") end
+local function getCharacter() return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() end
+local function getHandValue() local char = getCharacter() return char:FindFirstChild("Hand1") end
+
+local function findItemInInventory(itemName)
+	local inv = getInventory() if not inv then return nil end
+	for _, item in ipairs(inv:GetChildren()) do
+		if item.Name:lower() == itemName:lower() or item.Name:find(itemName) then return item end
+	end
+	return nil
+end
+
+-- AUXILIARES DE INTERFACE
+local function makeDraggable(frame)
+	local dragging, dragInput, dragStart, startPos
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true dragStart = input.Position startPos = frame.Position
+			input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+		end
+	end)
+	frame.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+local function applyNeonStroke(parent, thickness)
+	local stroke = Instance.new("UIStroke") stroke.Color = Color3.fromRGB(255, 0, 50) stroke.Thickness = thickness or 1.5 stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border stroke.Parent = parent return stroke
+end
+local function applyDarkStroke(parent)
+	local stroke = Instance.new("UIStroke") stroke.Color = Color3.fromRGB(10, 10, 10) stroke.Thickness = 1.2 stroke.Parent = parent return stroke
+end
+local function playClickAnimation(button)
+	local originalSize = button.Size
+	local targetSize = UDim2.new(originalSize.X.Scale, originalSize.X.Offset - 4, originalSize.Y.Scale, originalSize.Y.Offset - 4)
+	local shrink = TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize})
+	local restore = TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = originalSize})
+	shrink:Play() shrink.Completed:Connect(function() restore:Play() end)
+end
+
+-- GERENCIAMENTO DE INTERFACES (MENU APARECE PARA TODO MUNDO AGORA)
+local MainToggle = Instance.new("TextButton")
+local MainFrame = Instance.new("Frame")
+local FloatAimbotButton = Instance.new("TextButton")
+local FloatFilterButton = Instance.new("TextButton")
+local FloatAppleButton = Instance.new("TextButton")
+local FloatShieldButton = Instance.new("TextButton")
+local FovCircleFrame = Instance.new("Frame")
+local CenterDot = Instance.new("Frame")
+
+MainToggle.Size = UDim2.new(0, 55, 0, 55) MainToggle.Position = UDim2.new(0, 30, 0.4, 0) MainToggle.BackgroundColor3 = Color3.fromRGB(15, 15, 15) MainToggle.Text = "✺" MainToggle.TextColor3 = Color3.fromRGB(255, 0, 50) MainToggle.Font = Enum.Font.SourceSansBold MainToggle.TextSize = 32 MainToggle.ZIndex = 10 MainToggle.Parent = ScreenGui
+Instance.new("UICorner", MainToggle).CornerRadius = UDim.new(1, 0) applyNeonStroke(MainToggle, 2) makeDraggable(MainToggle)
+
+MainFrame.Size = UDim2.new(0, 460, 0, 320) MainFrame.Position = UDim2.new(0.5, -230, 0.5, -160) MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18) MainFrame.Visible = false MainFrame.ClipsDescendants = true MainFrame.Parent = ScreenGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8) applyNeonStroke(MainFrame, 1.8) makeDraggable(MainFrame)
+
+local isGuiMoving = false
+MainToggle.MouseButton1Click:Connect(function()
+	if isGuiMoving then return end playClickAnimation(MainToggle)
+	if not MainFrame.Visible then
+		MainFrame.Size = UDim2.new(0, 460, 0, 0) MainFrame.Visible = true isGuiMoving = true
+		local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 460, 0, 320)})
+		openTween:Play() openTween.Completed:Connect(function() isGuiMoving = false end)
+	else
+		isGuiMoving = true
+		local closeTween = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 460, 0, 0)})
+		closeTween:Play() closeTween.Completed:Connect(function() MainFrame.Visible = false isGuiMoving = false end)
+	end
+end)
+
+local function CreateExternalButton(text, baseColor, defaultYOffset)
+	local extBtn = Instance.new("TextButton")
+	extBtn.Size = UDim2.new(0, 60, 0, 60) extBtn.Position = UDim2.new(0.85, 0, 0, defaultYOffset) extBtn.BackgroundColor3 = baseColor extBtn.Text = text extBtn.TextColor3 = Color3.fromRGB(255, 255, 255) extBtn.Font = Enum.Font.SourceSansBold extBtn.TextSize = 13 extBtn.Visible = false extBtn.ZIndex = 9 extBtn.Parent = ScreenGui
+	Instance.new("UICorner", extBtn).CornerRadius = UDim.new(1, 0) applyNeonStroke(extBtn, 1.5) makeDraggable(extBtn) return extBtn
+end
+
+FloatAimbotButton = CreateExternalButton("🎯\nOFF", Color3.fromRGB(130, 20, 30), 120)
+FloatFilterButton = CreateExternalButton("Foco\nPLAYERS", Color3.fromRGB(70, 25, 90), 270)
+FloatAppleButton = CreateExternalButton("🍎\nOFF", Color3.fromRGB(130, 100, 15), 195)
+FloatShieldButton = CreateExternalButton("🛡️\nOFF", Color3.fromRGB(90, 20, 100), 195)
+
+FovCircleFrame.Size = UDim2.new(0, FovRadiusValue * 2, 0, FovRadiusValue * 2) FovCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5) FovCircleFrame.Position = UDim2.new(0.5, 0, 0.5, -29) FovCircleFrame.BackgroundTransparency = 1 FovCircleFrame.Visible = AimbotSystemActive FovCircleFrame.Parent = ScreenGui
+Instance.new("UICorner", FovCircleFrame).CornerRadius = UDim.new(1, 0)
+local FovStroke = Instance.new("UIStroke") FovStroke.Color = Color3.fromRGB(255, 0, 50) FovStroke.Thickness = 1.2 FovStroke.Parent = FovCircleFrame
+
+CenterDot.Size = UDim2.new(0, 4, 0, 4) CenterDot.AnchorPoint = Vector2.new(0.5, 0.5) CenterDot.Position = UDim2.new(0.5, 0, 0.5, 0) CenterDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255) CenterDot.BorderSizePixel = 0 CenterDot.Parent = FovCircleFrame
+Instance.new("UICorner", CenterDot).CornerRadius = UDim.new(1, 0)
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -20, 0, 30) TitleLabel.Position = UDim2.new(0, 10, 0, 5) TitleLabel.BackgroundTransparency = 1 TitleLabel.Text = "KuroNovaVØid 👑 | Script v1.5.5" TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255) TitleLabel.Font = Enum.Font.SourceSansBold TitleLabel.TextSize = 16 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left TitleLabel.Parent = MainFrame
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 120, 1, -45) Sidebar.Position = UDim2.new(0, 5, 0, 40) Sidebar.BackgroundColor3 = Color3.fromRGB(12, 12, 12) Sidebar.Parent = MainFrame
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6) applyDarkStroke(Sidebar)
+
+local SidebarLayout = Instance.new("UIListLayout") SidebarLayout.Padding = UDim.new(0, 5) SidebarLayout.Parent = Sidebar
+local SidebarPadding = Instance.new("UIPadding") SidebarPadding.PaddingTop = UDim.new(0, 5) SidebarPadding.PaddingLeft = UDim.new(0, 5) SidebarPadding.PaddingRight = UDim.new(0, 5) SidebarPadding.Parent = Sidebar
+
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(1, -140, 1, -50) Container.Position = UDim2.new(0, 132, 0, 42) Container.BackgroundTransparency = 1 Container.Parent = MainFrame
+
+local currentTab = nil
+local function CreateTab(ptText)
+	local Btn = Instance.new("TextButton")
+	Btn.Size = UDim2.new(1, 0, 0, 32) Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 24) Btn.Text = Translate(ptText) Btn.TextColor3 = Color3.fromRGB(200, 200, 200) Btn.Font = Enum.Font.SourceSansBold Btn.TextSize = 14 Btn.Parent = Sidebar
+	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4) applyDarkStroke(Btn)
+
+	local Page = Instance.new("ScrollingFrame")
+	Page.Size = UDim2.new(1, 0, 1, 0) Page.BackgroundTransparency = 1 Page.ScrollBarThickness = 3 Page.Visible = false Page.Parent = Container
+	local PageLayout = Instance.new("UIListLayout") PageLayout.Padding = UDim.new(0, 6) PageLayout.Parent = Page
+
+	Btn.MouseButton1Click:Connect(function()
+		playClickAnimation(Btn)
+		if currentTab then currentTab.Page.Visible = false currentTab.Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 24) currentTab.Btn.TextColor3 = Color3.fromRGB(200, 200, 200) end
+		currentTab = {Page = Page, Btn = Btn} Page.Visible = true Btn.BackgroundColor3 = Color3.fromRGB(255, 0, 50) Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	end) return Page
+end
+
+local function AddTextBox(parent, ptPlaceholder)
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(1, -10, 0, 35) box.BackgroundColor3 = Color3.fromRGB(25, 25, 25) box.PlaceholderText = Translate(ptPlaceholder) box.Text = "" box.TextColor3 = Color3.fromRGB(255, 255, 255) box.PlaceholderColor3 = Color3.fromRGB(110, 110, 110) box.Font = Enum.Font.SourceSans box.TextSize = 14 box.Parent = parent
+	Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4) applyDarkStroke(box) return box
+end
+
+local function AddButton(parent, ptText, defaultColor)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -10, 0, 35) btn.BackgroundColor3 = defaultColor or Color3.fromRGB(30, 30, 30) btn.Text = Translate(ptText) btn.TextColor3 = Color3.fromRGB(255, 255, 255) btn.Font = Enum.Font.SourceSansBold btn.TextSize = 14 btn.Parent = parent
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4) applyDarkStroke(btn) return btn
+end
+
+-- CRIAÇÃO DAS ABAS
+local PagePlayer = CreateTab("Jogador")
+local PageAimbot = CreateTab("Aimbot")
+local PageAttributes = CreateTab("Atributos")
+local PageCredits = CreateTab("Créditos")
+
+local CreditText = Instance.new("TextLabel")
+CreditText.Size = UDim2.new(1, -10, 0, 180) CreditText.BackgroundTransparency = 1 CreditText.Text = "Este script pertence e foi criado exclusivamente para:\n\n👑 KuroNovaVØid 👑\n\nSe você está usando isso e não é ele, parabéns! Siga ele no TikTok:\n\n🎵 @Alduffrydler 🎵\n\nTodos os direitos resonators." CreditText.TextColor3 = Color3.fromRGB(255, 200, 0) CreditText.Font = Enum.Font.SourceSansItalic CreditText.TextSize = 14 CreditText.TextWrapped = true CreditText.Parent = PageCredits
+
+-- CONTROLES JOGADOR
+local SpeedInput = AddTextBox(PagePlayer, "Velocidade do Executor (Ex: 50)...")
+local SpeedBtn = AddButton(PagePlayer, "Ativar Velocidade")
+local InfJumpBtn = AddButton(PagePlayer, "Pulo Infinito: DESLIGADO")
+local NoclipBtn = AddButton(PagePlayer, "Noclip: DESLIGADO")
+
+-- CONTROLES AIMBOT
+local AimToggleBtn = AddButton(PageAimbot, "Ativar Sistema Aimbot")
+local ModeToggleBtn = AddButton(PageAimbot, "Modo: Dinâmico", Color3.fromRGB(25, 50, 90))
+local TargetFilterBtn = AddButton(PageAimbot, "Foco: Players", Color3.fromRGB(70, 25, 90))
+local FovInput = AddTextBox(PageAimbot, "Tamanho do Círculo FOV (Ex: 120)...")
+local FovApplyBtn = AddButton(PageAimbot, "Atualizar Tamanho do FOV")
+
+-- CONTROLES ATRIBUTOS
+local AppleMenuBtn = AddButton(PageAttributes, "Ativar Sistema da Maçã")
+local ShieldMenuBtn = AddButton(PageAttributes, "Ativar Sistema do Escudo")
+
+-- =============================================================================
+-- APLICAÇÃO DOS VALORES SALVOS NA INTERFACE
+-- =============================================================================
+if SpeedActive then
+	SpeedBtn.Text = Translate("Velocidade Modificada") .. " (" .. tostring(TargetValueSpeed) .. ")"
+	SpeedBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
+	SpeedInput.Text = tostring(TargetValueSpeed)
+end
+
+if InfiniteJumpActive then
+	InfJumpBtn.Text = Translate("Pulo Infinito: LIGADO")
+	InfJumpBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
+end
+
+if NoclipActive then
+	NoclipBtn.Text = Translate("Noclip: LIGADO")
+	NoclipBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
+end
+
+if AimbotSystemActive then
+	AimToggleBtn.Text = Translate("Desativar Sistema Aimbot")
+	AimToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
+	FloatAimbotButton.Visible = true
+	FloatFilterButton.Visible = true
+end
+
+FovInput.Text = tostring(FovRadiusValue)
+
+if AimbotMode == "100% Focus" then
+	ModeToggleBtn.Text = Translate("Modo: 100% Foco")
+	ModeToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 25, 25)
+else
+	ModeToggleBtn.Text = Translate("Modo: Dinâmico")
+	ModeToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 50, 90)
+end
+
+if AimbotTargetFilter == "Bots" then
+	TargetFilterBtn.Text = Translate("Foco: Bots/NPCs")
+	FloatFilterButton.Text = "Foco\nBOTS"
+elseif AimbotTargetFilter == "All" then
+	TargetFilterBtn.Text = Translate("Foco: Todos")
+	FloatFilterButton.Text = "Foco\nTODOS"
+else
+	TargetFilterBtn.Text = Translate("Foco: Players")
+	FloatFilterButton.Text = "Foco\nPLAYERS"
+end
+
+-- =============================================================================
+-- LOGICAS E EVENTOS COM SALVAMENTO AUTOMÁTICO
+-- =============================================================================
+SpeedBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(SpeedBtn) local num = tonumber(SpeedInput.Text)
+	if num then 
+		TargetValueSpeed = num SpeedActive = true SpeedBtn.Text = Translate("Velocidade Modificada") .. " (" .. tostring(num) .. ")" SpeedBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
+	else 
+		SpeedActive = false SpeedBtn.Text = Translate("Velocidade Padrão") SpeedBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30) 
+	end
+	SaveSettings()
+end)
+
+InfJumpBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(InfJumpBtn) InfiniteJumpActive = not InfiniteJumpActive
+	InfJumpBtn.Text = InfiniteJumpActive and Translate("Pulo Infinito: LIGADO") or Translate("Pulo Infinito: DESLIGADO")
+	InfJumpBtn.BackgroundColor3 = InfiniteJumpActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
+	SaveSettings()
+end)
+
+UserInputService.JumpRequest:Connect(function()
+	if InfiniteJumpActive and LocalPlayer.Character then
+		local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if humanoid then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
+	end
+end)
+
+NoclipBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(NoclipBtn) NoclipActive = not NoclipActive
+	NoclipBtn.Text = NoclipActive and Translate("Noclip: LIGADO") or Translate("Noclip: DESLIGADO")
+	NoclipBtn.BackgroundColor3 = NoclipActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
+	SaveSettings()
+end)
+
+RunService.Heartbeat:Connect(function()
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = LocalPlayer.Character.HumanoidRootPart
+		if SpeedActive then
+			local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+			if humanoid and humanoid.MoveDirection.Magnitude > 0 then hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (TargetValueSpeed / 45)) end
+		end
+		if NoclipActive then
+			for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do if part:IsA("BasePart") then part.CanCollide = false end end
+		end
+	end
+end)
+
+local function CycleTargetFilter()
+	if AimbotTargetFilter == "Players" then 
+		AimbotTargetFilter = "Bots" 
+		TargetFilterBtn.Text = Translate("Foco: Bots/NPCs") 
+		FloatFilterButton.Text = "Foco\nBOTS"
+	elseif AimbotTargetFilter == "Bots" then 
+		AimbotTargetFilter = "All" 
+		TargetFilterBtn.Text = Translate("Foco: Todos") 
+		FloatFilterButton.Text = "Foco\nTODOS"
+	else 
+		AimbotTargetFilter = "Players" 
+		TargetFilterBtn.Text = Translate("Foco: Players") 
+		FloatFilterButton.Text = "Foco\nPLAYERS" 
+	end
+	CurrentAimbotTarget = nil 
+	if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
+	SaveSettings()
+end
+
+TargetFilterBtn.MouseButton1Click:Connect(function() playClickAnimation(TargetFilterBtn) CycleTargetFilter() end)
+FloatFilterButton.MouseButton1Click:Connect(function() playClickAnimation(FloatFilterButton) CycleTargetFilter() end)
+
+-- PROTEÇÃO DO DONO INTEGRADA DIRETAMENTE NA BUSCA DE MIRA (TRAVA SÓ ATIVA PARA TERCEIROS)
+local function GetClosestPlayerSmart()
+	local centerScreen = CenterDot.AbsolutePosition local closestTarget = nil local lowestScore = math.huge
+	if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return nil end
+	local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+
+	local listToScan = {}
+	if AimbotTargetFilter == "Players" then
+		for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and p.Character then table.insert(listToScan, p.Character) end end
+	elseif AimbotTargetFilter == "Bots" then
+		for _, obj in ipairs(workspace:GetDescendants()) do
+			if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(obj) and obj ~= LocalPlayer.Character then table.insert(listToScan, obj) end
+		end
+	else
+		for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and p.Character then table.insert(listToScan, p.Character) end end
+		for _, obj in ipairs(workspace:GetDescendants()) do
+			if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(obj) and obj ~= LocalPlayer.Character then table.insert(listToScan, obj) end
+		end
+	end
+
+	for _, char in ipairs(listToScan) do
+		-- Se NÃO for você rodando o script, a trava bloqueia mirar em você
+		if not IsMeTheOwner then
+			if char.Name == OwnerName then continue end
+			local pObj = Players:GetPlayerFromCharacter(char)
+			if pObj and pObj.Name == OwnerName then continue end
+		end
+		
+		local hrp = char:FindFirstChild("HumanoidRootPart") local hum = char:FindFirstChildOfClass("Humanoid")
+		if hrp and hum and hum.Health > 0 then
+			local targetPart = char:FindFirstChild("Head") or hrp
+			local screenPos, onScreen = Camera:WorldToScreenPoint(targetPart.Position)
+			if onScreen then
+				local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
+				if distanceToCenter < FovRadiusValue then
+					local distanceInStuds = (targetPart.Position - myPos).Magnitude
+					local score = (distanceToCenter * 0.7) + (distanceInStuds * 0.3)
+					if score < lowestScore then lowestScore = score closestTarget = char end
+				end
+			end
+		end
+	end
+	return closestTarget
+end
+
+local function ApplyHighlightToTarget(targetChar)
+	if CurrentTargetHighlight and CurrentTargetHighlight.Parent then if CurrentTargetHighlight.Adornee == targetChar then return end CurrentTargetHighlight:Destroy() end
+	if targetChar then
+		local hl = Instance.new("Highlight") hl.Name = "AimbotTargetHighlight" hl.FillTransparency = 0.7 hl.OutlineTransparency = 0 hl.Adornee = targetChar hl.Parent = targetChar CurrentTargetHighlight = hl
+	end
+end
+
+local function ClearHighlight() if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end end
+local function isCharacterValid(char) return char and char.Parent and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").Health > 0 end
+
+ModeToggleBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(ModeToggleBtn)
+	if AimbotMode == "Dynamic" then AimbotMode = "100% Focus" ModeToggleBtn.Text = Translate("Modo: 100% Foco") ModeToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 25, 25)
+	else AimbotMode = "Dynamic" ModeToggleBtn.Text = Translate("Modo: Dinâmico") ModeToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 50, 90) end
+	CurrentAimbotTarget = nil ClearHighlight()
+	SaveSettings()
+end)
+
+FovApplyBtn.MouseButton1Click:Connect(function() 
+	playClickAnimation(FovApplyBtn) local fv = tonumber(FovInput.Text) 
+	if fv then 
+		FovRadiusValue = fv FovCircleFrame.Size = UDim2.new(0, fv * 2, 0, fv * 2) 
+		SaveSettings()
+	end 
+end)
+
+AimToggleBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(AimToggleBtn) AimbotSystemActive = not AimbotSystemActive
+	AimToggleBtn.Text = AimbotSystemActive and Translate("Desativar Sistema Aimbot") or Translate("Ativar Sistema Aimbot")
+	AimToggleBtn.BackgroundColor3 = AimbotSystemActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
+	
+	FovCircleFrame.Visible = AimbotSystemActive 
+	FloatAimbotButton.Visible = AimbotSystemActive 
+	FloatFilterButton.Visible = AimbotSystemActive 
+	
+	if not AimbotSystemActive then
+		AimbotLockActive = false CurrentAimbotTarget = nil ClearHighlight() 
+		FloatAimbotButton.Text = "🎯\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30)
+	end
+	SaveSettings()
+end)
+
+FloatAimbotButton.MouseButton1Click:Connect(function()
+	playClickAnimation(FloatAimbotButton) if not AimbotSystemActive then return end
+	AimbotLockActive = not AimbotLockActive
+	if AimbotLockActive then
+		local t = GetClosestPlayerSmart()
+		if t then CurrentAimbotTarget = t FloatAimbotButton.Text = "🎯\nON" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(20, 130, 40)
+		else AimbotLockActive = false FloatAimbotButton.Text = "🎯\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30) end
+	else CurrentAimbotTarget = nil FloatAimbotButton.Text = "🎯\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30) end
+end)
+
+-- SISTEMA DE ATRIBUTOS EXCLUSIVO COM ALTERNÂNCIA INTELIGENTE
+AppleMenuBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(AppleMenuBtn)
+	if AppleSystemEquipped then 
+		AppleSystemEquipped = false
+		AppleEffectActive = false
+		FloatAppleButton.Visible = false
+		FloatAppleButton.Text = "🍎\nOFF" 
+		FloatAppleButton.BackgroundColor3 = Color3.fromRGB(130, 100, 15)
+		AppleMenuBtn.Text = Translate("Ativar Sistema da Maçã") 
+		AppleMenuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	else
+		if ShieldSystemEquipped then
+			ShieldSystemEquipped = false
+			ShieldEffectActive = false
+			FloatShieldButton.Visible = false
+			FloatShieldButton.Text = "🛡️\nOFF"
+			FloatShieldButton.BackgroundColor3 = Color3.fromRGB(90, 20, 100)
+			ShieldMenuBtn.Text = Translate("Ativar Sistema do Escudo")
+			ShieldMenuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+			pcall(function()
+				local char = LocalPlayer.Character
+				if char then
+					local shield = char:FindFirstChild("FireShield")
+					if shield then shield:FireServer(false) end
+				end
+			end)
+		end
+		
+		AppleSystemEquipped = true 
+		AppleMenuBtn.Text = Translate("Desativar Sistema da Maçã") 
+		AppleMenuBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50) 
+		FloatAppleButton.Visible = true
+	end
+end)
+
+ShieldMenuBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(ShieldMenuBtn)
+	if ShieldSystemEquipped then 
+		ShieldSystemEquipped = false
+		ShieldEffectActive = false
+		FloatShieldButton.Visible = false
+		FloatShieldButton.Text = "🛡️\nOFF" 
+		FloatShieldButton.BackgroundColor3 = Color3.fromRGB(90, 20, 100)
+		ShieldMenuBtn.Text = Translate("Ativar Sistema do Escudo") 
+		ShieldMenuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+		pcall(function()
+			local char = LocalPlayer.Character
+			if char then
+				local shield = char:FindFirstChild("FireShield")
+				if shield then shield:FireServer(false) end
+			end
+		end)
+	else
+		if AppleSystemEquipped then
+			AppleSystemEquipped = false
+			AppleEffectActive = false
+			FloatAppleButton.Visible = false
+			FloatAppleButton.Text = "🍎\nOFF"
+			FloatAppleButton.BackgroundColor3 = Color3.fromRGB(130, 100, 15)
+			AppleMenuBtn.Text = Translate("Ativar Sistema da Maçã")
+			AppleMenuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+		end
+		
+		ShieldSystemEquipped = true 
+		ShieldMenuBtn.Text = Translate("Desativar Sistema do Escudo") 
+		ShieldMenuBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50) 
+		FloatShieldButton.Visible = true
+	end
+end)
+
+FloatAppleButton.MouseButton1Click:Connect(function()
+	playClickAnimation(FloatAppleButton) if not AppleSystemEquipped then return end
+	AppleEffectActive = not AppleEffectActive
+	if AppleEffectActive then FloatAppleButton.Text = "🍎\nON" FloatAppleButton.BackgroundColor3 = Color3.fromRGB(20, 130, 40)
+	else FloatAppleButton.Text = "🍎\nOFF" FloatAppleButton.BackgroundColor3 = Color3.fromRGB(130, 100, 15) end
+end)
+
+FloatShieldButton.MouseButton1Click:Connect(function()
+	playClickAnimation(FloatShieldButton) if not ShieldSystemEquipped then return end
+	ShieldEffectActive = not ShieldEffectActive
+	if ShieldEffectActive then 
+		FloatShieldButton.Text = "🛡️\nON" FloatShieldButton.BackgroundColor3 = Color3.fromRGB(20, 130, 40)
+	else
+		FloatShieldButton.Text = "🛡️\nOFF" FloatShieldButton.BackgroundColor3 = Color3.fromRGB(90, 20, 100)
+		pcall(function()
+			local char = LocalPlayer.Character
+			if char then
+				local shield = char:FindFirstChild("FireShield")
+				if shield then shield:FireServer(false) end
+			end
+		end)
+	end
+end)
+
+-- LOOP PARALELO DE INJEÇÃO CONTÍNUA
+task.spawn(function()
+	local ReplicatedStorage = game:GetService("ReplicatedStorage") 
+	local remotes = ReplicatedStorage:WaitForChild("Remotes", 5) 
+	local equipRemote = remotes and remotes:WaitForChild("Equip", 5)
+	
+	while true do
+		task.wait(0.05)
+		
+		if AppleSystemEquipped then
+			local appleItem = findItemInInventory("Apple")
+			if appleItem then
+				local hand = getHandValue() 
+				if not hand or not hand.Value or tostring(hand.Value) ~= appleItem.Name then 
+					if equipRemote then 
+						pcall(function() equipRemote:FireServer(appleItem, "Hand1") end) 
+					end 
+				end
+				if AppleEffectActive then
+					local character = getCharacter() 
+					local remote = character:FindFirstChild(appleItem.Name) and character[appleItem.Name]:FindFirstChild("Data")
+					if remote then 
+						pcall(function() remote:FireServer(true) end) 
+						task.wait(COOLDOWN) 
+						pcall(function() remote:FireServer(false, true) end) 
+					end
+				end
+			end
+		end
+		
+		if ShieldSystemEquipped then
+			local shieldItem = findItemInInventory("Shield") or findItemInInventory("FireShield")
+			if shieldItem then
+				local hand = getHandValue() 
+				if not hand or not hand.Value or tostring(hand.Value) ~= shieldItem.Name then 
+					if equipRemote then 
+						pcall(function() equipRemote:FireServer(shieldItem, "Hand1") end) 
+					end 
+				end
+				if ShieldEffectActive then
+					local char = LocalPlayer.Character
+					if char then
+						local shield = char:FindFirstChild("FireShield")
+						if shield then 
+							pcall(function() shield:FireServer(true) end) 
+						end
+					end
+				end
+			end
+		end
+	end
+end)
+
+-- RENDERSTEPPED LOOP DE MIRA (TRAVA CONDICIONAL DE COPIAR MIRA)
+RunService.RenderStepped:Connect(function()
+	local h = (tick() % 5) / 5 local rainbowColor = Color3.fromHSV(h, 0.9, 0.9)
+	if CurrentTargetHighlight and CurrentTargetHighlight.Parent then CurrentTargetHighlight.OutlineColor = rainbowColor CurrentTargetHighlight.FillColor = rainbowColor end
+
+	-- Caso outra pessoa tente mirar em você, cancela na hora e avisa na tela dela
+	if not IsMeTheOwner and AimbotLockActive and CurrentAimbotTarget and CurrentAimbotTarget.Name == OwnerName then
+		CurrentAimbotTarget = nil AimbotLockActive = false ClearHighlight()
+		FloatAimbotButton.Text = "🎯\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30)
+		task.spawn(showAimWarning)
+	end
+
+	if AimbotSystemActive then
+		local scanTarget = GetClosestPlayerSmart()
+		if AimbotLockActive then
+			if AimbotMode == "100% Focus" and CurrentAimbotTarget and isCharacterValid(CurrentAimbotTarget) then
+				ApplyHighlightToTarget(CurrentAimbotTarget) local targetPos = CurrentAimbotTarget:FindFirstChild("Head") and CurrentAimbotTarget.Head.Position or CurrentAimbotTarget.HumanoidRootPart.Position Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+			elseif AimbotMode == "Dynamic" and scanTarget and isCharacterValid(scanTarget) then
+				CurrentAimbotTarget = scanTarget ApplyHighlightToTarget(scanTarget) local targetPos = CurrentAimbotTarget:FindFirstChild("Head") and CurrentAimbotTarget.Head.Position or CurrentAimbotTarget.HumanoidRootPart.Position Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+			else
+				CurrentAimbotTarget = nil ClearHighlight() AimbotLockActive = false FloatAimbotButton.Text = "🎯\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30)
+			end
+		else
+			if scanTarget and isCharacterValid(scanTarget) then ApplyHighlightToTarget(scanTarget) else ClearHighlight() end CurrentAimbotTarget = nil
+		end
+	else ClearHighlight() CurrentAimbotTarget = nil end
+end)
+
+-- SELEÇÃO AUTOMÁTICA DA PRIMEIRA ABA PADRÃO PARA TODOS
+local sidebarButtons = Sidebar:GetChildren()
+for _, obj in ipairs(sidebarButtons) do
+	if obj:IsA("TextButton") and obj.Text == Translate("Jogador") then currentTab = {Page = PagePlayer, Btn = obj} PagePlayer.Visible = true obj.BackgroundColor3 = Color3.fromRGB(255, 0, 50) obj.TextColor3 = Color3.fromRGB(255, 255, 255) break end
+end
