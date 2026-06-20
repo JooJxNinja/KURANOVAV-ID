@@ -5,30 +5,79 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
-local LocalizationService = game:GetService("LocalizationService")
 local TweenService = game:GetService("TweenService")
 
 local ImageName = "KURANOVAVGUI.png"
 local ImageUrl = "https://cdn.discordapp.com/attachments/1427457740900536381/1517460531328450560/file_000000002918720ea92188a1836db5bf.png?ex=6a365cbf&is=6a350b3f&hm=52f302acb5ddac1ffea4ee7d0c0769927a1454d5589bddb262caae2fe70818e0&"
 
 if not isfile(ImageName) then
-	writefile(ImageName, game:HttpGet(ImageUrl))
+	pcall(function() writefile(ImageName, game:HttpGet(ImageUrl)) end)
 end
-local AssetId = getcustomasset(ImageName)
+local AssetId = isfile(ImageName) and getcustomasset(ImageName) or ""
 
 local ExistingGui = PlayerGui:FindFirstChild("KuroNovaVoidGui")
-if ExistingGui then
-	ExistingGui:Destroy()
-	task.wait(0.1)
-end
+if ExistingGui then ExistingGui:Destroy() task.wait(0.1) end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "KuroNovaVoidGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
+local ConfigName = "KuroNovaConfig.json"
 local TargetGameId = 77682960030101
 local CurrentGameId = game.PlaceId
+
+local State = {
+	TargetValueSpeed = 16,
+	SpeedActive = false,
+	InfiniteJumpActive = false,
+	NoclipActive = false,
+	AimbotSystemActive = false,
+	AimbotLockActive = false,
+	FovRadiusValue = 100,
+	AimbotMode = "100% Focus",
+	AimbotTargetFilter = "Players",
+	AppleSystemEquipped = false,
+	AppleEffectActive = false,
+	ShieldSystemEquipped = false,
+	ShieldEffectActive = false,
+	HideFloatingButtons = false,
+	Keybinds = {
+		ToggleMenu = "RightControl",
+		Aimbot = "Unknown",
+		Filter = "Unknown",
+		Apple = "Unknown",
+		Shield = "Unknown"
+	}
+}
+
+local COOLDOWN = 1.4
+local CurrentAimbotTarget = nil
+local CurrentTargetHighlight = nil
+
+local function SaveConfig()
+	local success, json = pcall(function() return HttpService:JSONEncode(State) end)
+	if success then writefile(ConfigName, json) end
+end
+
+local function LoadConfig()
+	if isfile(ConfigName) then
+		local success, content = pcall(function() return readfile(ConfigName) end)
+		if success then
+			local success2, data = pcall(function() return HttpService:JSONDecode(content) end)
+			if success2 and data then
+				for k, v in pairs(data) do
+					if type(v) == "table" and k == "Keybinds" then
+						for bindK, bindV in pairs(v) do State.Keybinds[bindK] = bindV end
+					else
+						State[k] = v
+					end
+				end
+			end
+		end
+	end
+end
+LoadConfig()
 
 if CurrentGameId ~= TargetGameId then
 	local WrongGameCard = Instance.new("Frame")
@@ -39,52 +88,21 @@ if CurrentGameId ~= TargetGameId then
 	WrongGameCard.BackgroundTransparency = 0.15
 	WrongGameCard.ZIndex = 200
 	WrongGameCard.Parent = ScreenGui
-	local cardCorner = Instance.new("UICorner")
-	cardCorner.CornerRadius = UDim.new(0, 10)
-	cardCorner.Parent = WrongGameCard
-	local cardStroke = Instance.new("UIStroke")
-	cardStroke.Thickness = 2.5
-	cardStroke.Color = Color3.fromRGB(255, 0, 50)
-	cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	cardStroke.Parent = WrongGameCard
+	
+	local cardCorner = Instance.new("UICorner", WrongGameCard) cardCorner.CornerRadius = UDim.new(0, 10)
+	local cardStroke = Instance.new("UIStroke", WrongGameCard) cardStroke.Thickness = 2.5 cardStroke.Color = Color3.fromRGB(255, 0, 50) cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	
 	local TitleText = Instance.new("TextLabel")
-	TitleText.Size = UDim2.new(1, 0, 0, 30)
-	TitleText.Position = UDim2.new(0, 0, 0, 10)
-	TitleText.BackgroundTransparency = 1
-	TitleText.Font = Enum.Font.SourceSansBold
-	TitleText.TextSize = 22
-	TitleText.Text = "WRONG GAME DETECTED"
-	TitleText.TextColor3 = Color3.fromRGB(255, 0, 50)
-	TitleText.ZIndex = 201
-	TitleText.Parent = WrongGameCard
+	TitleText.Size = UDim2.new(1, 0, 0, 30) TitleText.Position = UDim2.new(0, 0, 0, 10) TitleText.BackgroundTransparency = 1 TitleText.Font = Enum.Font.SourceSansBold TitleText.TextSize = 22 TitleText.Text = "WRONG GAME DETECTED" TitleText.TextColor3 = Color3.fromRGB(255, 0, 50) TitleText.ZIndex = 201 TitleText.Parent = WrongGameCard
+	
 	local InfoText = Instance.new("TextLabel")
-	InfoText.Size = UDim2.new(1, -20, 0, 50)
-	InfoText.Position = UDim2.new(0, 10, 0, 40)
-	InfoText.BackgroundTransparency = 1
-	InfoText.Font = Enum.Font.SourceSans
-	InfoText.TextSize = 14
-	InfoText.TextWrapped = true
-	InfoText.Text = "You are playing the wrong game right now\nThis script only works on the official place\nCopy the link below to play MineBAT"
-	InfoText.TextColor3 = Color3.fromRGB(230, 230, 230)
-	InfoText.ZIndex = 201
-	InfoText.Parent = WrongGameCard
+	InfoText.Size = UDim2.new(1, -20, 0, 50) InfoText.Position = UDim2.new(0, 10, 0, 40) InfoText.BackgroundTransparency = 1 InfoText.Font = Enum.Font.SourceSans InfoText.TextSize = 14 InfoText.TextWrapped = true InfoText.Text = "You are playing the wrong game right now\nThis script only works on the official place\nCopy the link below to play MineBAT" InfoText.TextColor3 = Color3.fromRGB(230, 230, 230) InfoText.ZIndex = 201 InfoText.Parent = WrongGameCard
+	
 	local LinkBox = Instance.new("TextBox")
-	LinkBox.Size = UDim2.new(1, -40, 0, 35)
-	LinkBox.Position = UDim2.new(0, 20, 0, 105)
-	LinkBox.BackgroundColor3 = Color3.fromRGB(30, 10, 12)
-	LinkBox.Font = Enum.Font.SourceSansBold
-	LinkBox.TextSize = 14
-	LinkBox.Text = "roblox com games 77682960030101"
-	LinkBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-	LinkBox.ClearTextOnFocus = false
-	LinkBox.TextEditable = false
-	LinkBox.ZIndex = 201
-	LinkBox.Parent = WrongGameCard
+	LinkBox.Size = UDim2.new(1, -40, 0, 35) LinkBox.Position = UDim2.new(0, 20, 0, 105) LinkBox.BackgroundColor3 = Color3.fromRGB(30, 10, 12) LinkBox.Font = Enum.Font.SourceSansBold LinkBox.TextSize = 14 LinkBox.Text = "roblox.com/games/77682960030101" LinkBox.TextColor3 = Color3.fromRGB(255, 255, 255) LinkBox.ClearTextOnFocus = false LinkBox.TextEditable = false LinkBox.ZIndex = 201 LinkBox.Parent = WrongGameCard
 	Instance.new("UICorner", LinkBox).CornerRadius = UDim.new(0, 5)
-	local boxStroke = Instance.new("UIStroke")
-	boxStroke.Thickness = 1
-	boxStroke.Color = Color3.fromRGB(120, 20, 30)
-	boxStroke.Parent = LinkBox
+	local boxStroke = Instance.new("UIStroke", LinkBox) boxStroke.Thickness = 1 boxStroke.Color = Color3.fromRGB(120, 20, 30)
+	
 	task.spawn(function()
 		while WrongGameCard and WrongGameCard.Parent do
 			local pulseUp = TweenService:Create(cardStroke, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 4})
@@ -100,234 +118,33 @@ if CurrentGameId ~= TargetGameId then
 	TweenService:Create(LinkBox, TweenInfo.new(0.4), {TextTransparency = 1, BackgroundTransparency = 1}):Play()
 	TweenService:Create(cardStroke, TweenInfo.new(0.4), {Transparency = 1}):Play()
 	TweenService:Create(boxStroke, TweenInfo.new(0.4), {Transparency = 1}):Play()
-	tweenOut:Play()
-	tweenOut.Completed:Connect(function() 
-		ScreenGui:Destroy() 
-	end)
+	tweenOut:Play() tweenOut.Completed:Connect(function() ScreenGui:Destroy() end)
 	return
 end
 
 local OwnerName = "JooJxninja_cont1"
-local IsMeTheOwner = (LocalPlayer.Name == OwnerName)
-TargetValueSpeed = 16
-SpeedActive = false
-InfiniteJumpActive = false
-NoclipActive = false
-AimbotSystemActive = false
-AimbotLockActive = false
-FovRadiusValue = 100
-CurrentAimbotTarget = nil
-CurrentTargetHighlight = nil
-AimbotMode = "Dynamic"
-AimbotTargetFilter = "Players" 
-AppleSystemEquipped = false
-ShieldSystemEquipped = false
-AppleEffectActive = false
-ShieldEffectActive = false
-local COOLDOWN = 1.4
-
-local Keybinds = {
-	Aimbot = Enum.KeyCode.Unknown,
-	Filter = Enum.KeyCode.Unknown,
-	Apple = Enum.KeyCode.Unknown,
-	Shield = Enum.KeyCode.Unknown
-}
-local KeybindButtons = {}
-local IsListeningForKey = false
-local CurrentListenAction = nil
 
 local IntroCard = Instance.new("Frame")
-IntroCard.Name = "IntroMessageCard"
-IntroCard.Size = UDim2.new(0, 340, 0, 85)
-IntroCard.Position = UDim2.new(0.5, -170, 1, 50)
-IntroCard.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
-IntroCard.BackgroundTransparency = 0.15
-IntroCard.ZIndex = 100
-IntroCard.Parent = ScreenGui
-local cardCorner = Instance.new("UICorner")
-cardCorner.CornerRadius = UDim.new(0, 10)
-cardCorner.Parent = IntroCard
-local cardStroke = Instance.new("UIStroke")
-cardStroke.Thickness = 2
-cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-cardStroke.Parent = IntroCard
-local uigradient = Instance.new("UIGradient")
-uigradient.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 120, 120))
-})
-uigradient.Rotation = 45
-uigradient.Parent = IntroCard
-local StatusIcon = Instance.new("TextLabel")
-StatusIcon.Size = UDim2.new(0, 40, 1, 0)
-StatusIcon.Position = UDim2.new(0, 12, 0, 0)
-StatusIcon.BackgroundTransparency = 1
-StatusIcon.Font = Enum.Font.SourceSansBold
-StatusIcon.TextSize = 24
-StatusIcon.ZIndex = 101
-StatusIcon.Parent = IntroCard
-local IntroText = Instance.new("TextLabel")
-IntroText.Size = UDim2.new(1, -75, 1, 0)
-IntroText.Position = UDim2.new(0, 60, 0, 0)
-IntroText.BackgroundTransparency = 1
-IntroText.Font = Enum.Font.SourceSansBold
-IntroText.TextSize = 15
-IntroText.TextWrapped = true
-IntroText.TextXAlignment = Enum.TextXAlignment.Left
-IntroText.ZIndex = 101
-IntroText.Parent = IntroCard
-local isOwnerPresent = false
+IntroCard.Name = "IntroMessageCard" IntroCard.Size = UDim2.new(0, 340, 0, 85) IntroCard.Position = UDim2.new(0.5, -170, 1, 50) IntroCard.BackgroundColor3 = Color3.fromRGB(15, 15, 17) IntroCard.BackgroundTransparency = 0.15 IntroCard.ZIndex = 100 IntroCard.Parent = ScreenGui
+Instance.new("UICorner", IntroCard).CornerRadius = UDim.new(0, 10)
+local cardStroke = Instance.new("UIStroke", IntroCard) cardStroke.Thickness = 2 cardStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local StatusIcon = Instance.new("TextLabel") StatusIcon.Size = UDim2.new(0, 40, 1, 0) StatusIcon.Position = UDim2.new(0, 12, 0, 0) StatusIcon.BackgroundTransparency = 1 StatusIcon.Font = Enum.Font.SourceSansBold StatusIcon.TextSize = 24 StatusIcon.ZIndex = 101 StatusIcon.Parent = IntroCard
+local IntroText = Instance.new("TextLabel") IntroText.Size = UDim2.new(1, -75, 1, 0) IntroText.Position = UDim2.new(0, 60, 0, 0) IntroText.BackgroundTransparency = 1 IntroText.Font = Enum.Font.SourceSansBold IntroText.TextSize = 15 IntroText.TextWrapped = true IntroText.TextXAlignment = Enum.TextXAlignment.Left IntroText.ZIndex = 101 IntroText.Parent = IntroCard
+
 task.spawn(function()
-	for i = 1, 20 do
-		if Players:FindFirstChild(OwnerName) then
-			isOwnerPresent = true
-			break
-		end
-		task.wait(0.5)
-	end
+	local isOwnerPresent = false
+	for i = 1, 10 do if Players:FindFirstChild(OwnerName) then isOwnerPresent = true break end task.wait(0.3) end
 	if isOwnerPresent then
-		StatusIcon.Text = "God"
-		StatusIcon.TextColor3 = Color3.fromRGB(255, 0, 50)
-		IntroText.Text = "DIVINITY DETECTED\nA supreme power is active in this server"
-		IntroText.TextColor3 = Color3.fromRGB(255, 255, 255)
-		cardStroke.Color = Color3.fromRGB(255, 0, 50)
+		StatusIcon.Text = "God" StatusIcon.TextColor3 = Color3.fromRGB(255, 0, 50) IntroText.Text = "DIVINITY DETECTED\nA supreme power is active in this server" IntroText.TextColor3 = Color3.fromRGB(255, 255, 255) cardStroke.Color = Color3.fromRGB(255, 0, 50)
 	else
-		StatusIcon.Text = "Din"
-		StatusIcon.TextColor3 = Color3.fromRGB(255, 200, 0)
-		IntroText.Text = "CORE INJECTED\nEnjoy a fraction of a mere power"
-		IntroText.TextColor3 = Color3.fromRGB(220, 220, 220)
-		cardStroke.Color = Color3.fromRGB(255, 200, 0)
+		StatusIcon.Text = "Din" StatusIcon.TextColor3 = Color3.fromRGB(255, 200, 0) IntroText.Text = "CORE INJECTED\nEnjoy a fraction of a mere power" IntroText.TextColor3 = Color3.fromRGB(220, 220, 220) cardStroke.Color = Color3.fromRGB(255, 200, 0)
 	end
-	task.spawn(function()
-		while IntroCard and IntroCard.Parent do
-			local pulseUp = TweenService:Create(cardStroke, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 3.5})
-			local pulseDown = TweenService:Create(cardStroke, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Thickness = 1.8})
-			pulseUp:Play() pulseUp.Completed:Wait()
-			pulseDown:Play() pulseDown.Completed:Wait()
-		end
-	end)
-	task.wait(0.5)
-	local tweenIn = TweenService:Create(IntroCard, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -170, 0.70, 0)})
-	tweenIn:Play()
-	task.wait(4.5)
-	local tweenOut = TweenService:Create(IntroCard, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -170, 1, 50), BackgroundTransparency = 1})
-	TweenService:Create(IntroText, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
-	TweenService:Create(StatusIcon, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
-	TweenService:Create(cardStroke, TweenInfo.new(0.4), {Transparency = 1}):Play()
-	tweenOut:Play()
-	tweenOut.Completed:Connect(function() IntroCard:Destroy() end)
+	TweenService:Create(IntroCard, TweenInfo.new(0.8, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -170, 0.75, 0)}):Play()
+	task.wait(4)
+	local out = TweenService:Create(IntroCard, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -170, 1, 50), BackgroundTransparency = 1})
+	out:Play() out.Completed:Connect(function() IntroCard:Destroy() end)
 end)
-
-local function applyGodVisual(char)
-	task.wait(0.5)
-	if not char or not char.Parent then return end
-	local plr = Players:GetPlayerFromCharacter(char)
-	if not plr or plr.Name ~= OwnerName then return end
-	if not IsMeTheOwner then
-		for _, obj in ipairs(char:GetDescendants()) do
-			if obj:IsA("Clothing") or obj:IsA("ShirtGraphic") or obj:IsA("BodyColors") or obj:IsA("Accessory") then
-				obj:Destroy()
-			elseif obj:IsA("BasePart") then
-				obj.Color = Color3.fromRGB(255, 255, 255)
-				obj.Material = Enum.Material.Neon
-			end
-		end
-	else
-		for _, obj in ipairs(char:GetDescendants()) do
-			if obj:IsA("BasePart") then
-				obj.Color = Color3.fromRGB(255, 255, 255)
-				obj.Material = Enum.Material.Neon
-			end
-		end
-	end
-	local godHighlight = char:FindFirstChild("GodGlowEffect") or Instance.new("Highlight")
-	godHighlight.Name = "GodGlowEffect"
-	godHighlight.FillColor = Color3.fromRGB(255, 255, 255)
-	godHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-	godHighlight.FillTransparency = 0.2
-	godHighlight.OutlineTransparency = 0
-	godHighlight.Adornee = char
-	godHighlight.Parent = char
-	local head = char:WaitForChild("Head", 5)
-	if head then
-		if head:FindFirstChild("OwnerTitleGui") then head.OwnerTitleGui:Destroy() end
-		local billGui = Instance.new("BillboardGui")
-		billGui.Name = "OwnerTitleGui"
-		billGui.Size = UDim2.new(0, 200, 0, 50)
-		billGui.Adornee = head
-		billGui.AlwaysOnTop = true
-		billGui.StudsOffset = Vector3.new(0, 2.5, 0)
-		billGui.Parent = head
-		local titleLabel = Instance.new("TextLabel")
-		titleLabel.Size = UDim2.new(1, 0, 1, 0)
-		titleLabel.BackgroundTransparency = 1
-		titleLabel.Text = "OWNER"
-		titleLabel.TextColor3 = Color3.fromRGB(255, 0, 50)
-		titleLabel.Font = Enum.Font.SourceSansBold
-		titleLabel.TextSize = 26
-		titleLabel.TextStrokeTransparency = 0
-		titleLabel.TextStrokeColor3 = Color3.fromRGB(255, 200, 0)
-		titleLabel.Parent = billGui
-		task.spawn(function()
-			while billGui and billGui.Parent do
-				TweenService:Create(titleLabel, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextSize = 29}):Play()
-				task.wait(1)
-				TweenService:Create(titleLabel, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {TextSize = 25}):Play()
-				task.wait(1)
-			end
-		end)
-	end
-end
-
-local function monitorOwner(p)
-	if p.Name == OwnerName then
-		if p.Character then task.spawn(applyGodVisual, p.Character) end
-		p.CharacterAdded:Connect(function(char)
-			task.spawn(applyGodVisual, char)
-		end)
-	end
-end
-
-local currentOwnerPlayer = Players:FindFirstChild(OwnerName)
-if currentOwnerPlayer then monitorOwner(currentOwnerPlayer) end
-Players.PlayerAdded:Connect(monitorOwner)
-
-local airTimeCounter = 0
-task.spawn(function()
-	while true do
-		task.wait(0.5)
-		local ownerPlr = Players:FindFirstChild(OwnerName)
-		if ownerPlr and ownerPlr.Character and ownerPlr.Character:FindFirstChild("Humanoid") then
-			local hum = ownerPlr.Character.Humanoid
-			if hum.FloorMaterial == Enum.Material.Air then
-				airTimeCounter = airTimeCounter + 0.5
-				if airTimeCounter >= 10 then
-					if not IsMeTheOwner then
-						LocalPlayer:Kick("A God is playing do not disturb")
-					end
-					break
-				end
-			else
-				airTimeCounter = 0
-			end
-		else
-			airTimeCounter = 0
-		end
-	end
-end)
-
-local function getInventory() return LocalPlayer:FindFirstChild("Inventory") or LocalPlayer:FindFirstChildOfClass("Backpack") end
-local function getCharacter() return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() end
-local function getHandValue() local char = getCharacter() return char:FindFirstChild("Hand1") end
-local function findItemInInventory(itemName)
-	local inv = getInventory() if not inv then return nil end
-	for _, item in ipairs(inv:GetChildren()) do
-		if item.Name:lower() == itemName:lower() then 
-			return item 
-		end
-	end
-	return nil
-end
 
 local function makeDraggable(frame)
 	local dragging, dragInput, dragStart, startPos
@@ -347,208 +164,315 @@ local function makeDraggable(frame)
 end
 
 local function applyNeonStroke(parent, thickness)
-	local stroke = Instance.new("UIStroke") stroke.Color = Color3.fromRGB(255, 0, 50) stroke.Thickness = thickness or 1.5 stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border stroke.Parent = parent return stroke
+	local s = Instance.new("UIStroke", parent) s.Color = Color3.fromRGB(255, 0, 50) s.Thickness = thickness or 1.5 s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border return s
 end
+
 local function applyDarkStroke(parent)
-	local stroke = Instance.new("UIStroke") stroke.Color = Color3.fromRGB(10, 10, 10) stroke.Thickness = 1.2 stroke.Parent = parent return stroke
+	local s = Instance.new("UIStroke", parent) s.Color = Color3.fromRGB(10, 10, 10) s.Thickness = 1.2 return s
 end
+
 local function playClickAnimation(button)
-	local originalSize = button.Size
-	local targetSize = UDim2.new(originalSize.X.Scale, originalSize.X.Offset - 4, originalSize.Y.Scale, originalSize.Y.Offset - 4)
-	local shrink = TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = targetSize})
-	local restore = TweenService:Create(button, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = originalSize})
-	shrink:Play() shrink.Completed:Connect(function() restore:Play() end)
+	local orig = button.Size
+	button:TweenSize(UDim2.new(orig.X.Scale, orig.X.Offset - 4, orig.Y.Scale, orig.Y.Offset - 4), "Out", "Quad", 0.08, true, function()
+		button:TweenSize(orig, "In", "Quad", 0.1, true)
+	end)
 end
 
-local MainToggle = Instance.new("ImageButton")
-local MainFrame = Instance.new("Frame")
-local FloatAimbotButton = Instance.new("TextButton")
-local FloatFilterButton = Instance.new("TextButton")
-local FloatAppleButton = Instance.new("TextButton")
-local FloatShieldButton = Instance.new("TextButton")
-local FovCircleFrame = Instance.new("Frame")
-local CenterDot = Instance.new("Frame")
+local MainToggle = Instance.new("ImageButton", ScreenGui) MainToggle.Size = UDim2.new(0, 65, 0, 65) MainToggle.Position = UDim2.new(0, 20, 0.3, 0) MainToggle.BackgroundColor3 = Color3.fromRGB(15, 15, 15) MainToggle.Image = AssetId MainToggle.ZIndex = 10
+Instance.new("UICorner", MainToggle).CornerRadius = UDim.new(0.2, 0) applyNeonStroke(MainToggle, 2) makeDraggable(MainToggle)
 
-MainToggle.Size = UDim2.new(0, 75, 0, 75) 
-MainToggle.Position = UDim2.new(0, 30, 0.4, 0) 
-MainToggle.BackgroundColor3 = Color3.fromRGB(15, 15, 15) 
-MainToggle.Image = AssetId
-MainToggle.ZIndex = 10 
-MainToggle.Parent = ScreenGui
-Instance.new("UICorner", MainToggle).CornerRadius = UDim.new(0.2, 0) 
-applyNeonStroke(MainToggle, 2) 
-makeDraggable(MainToggle)
-
-MainFrame.Size = UDim2.new(0, 460, 0, 320) MainFrame.Position = UDim2.new(0.5, -230, 0.5, -160) MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18) MainFrame.Visible = false MainFrame.ClipsDescendants = true MainFrame.Parent = ScreenGui
+local MainFrame = Instance.new("Frame", ScreenGui) MainFrame.Size = UDim2.new(0, 480, 0, 330) MainFrame.Position = UDim2.new(0.5, -240, 0.5, -165) MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18) MainFrame.Visible = false MainFrame.ClipsDescendants = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8) applyNeonStroke(MainFrame, 1.8) makeDraggable(MainFrame)
-local isGuiMoving = false
-MainToggle.MouseButton1Click:Connect(function()
-	if isGuiMoving then return end playClickAnimation(MainToggle)
-	if not MainFrame.Visible then
-		MainFrame.Size = UDim2.new(0, 460, 0, 0) MainFrame.Visible = true isGuiMoving = true
-		local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 460, 0, 320)})
-		openTween:Play() openTween.Completed:Connect(function() 
-			isGuiMoving = false 
-			if UserInputService.TouchEnabled and not UserInputService.MouseEnabled then else
-				UserInputService.MouseIconEnabled = true
-				UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-			end
-		end)
-	else
-		isGuiMoving = true
-		local closeTween = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 460, 0, 0)})
-		closeTween:Play() closeTween.Completed:Connect(function() 
-			MainFrame.Visible = false 
-			isGuiMoving = false 
-		end)
-	end
-end)
 
-local function CreateExternalButton(text, baseColor, defaultYOffset)
-	local extBtn = Instance.new("TextButton")
-	extBtn.Size = UDim2.new(0, 60, 0, 60) extBtn.Position = UDim2.new(0.85, 0, 0, defaultYOffset) extBtn.BackgroundColor3 = baseColor extBtn.Text = text extBtn.TextColor3 = Color3.fromRGB(255, 255, 255) extBtn.Font = Enum.Font.SourceSansBold extBtn.TextSize = 13 extBtn.Visible = false extBtn.ZIndex = 9 extBtn.Parent = ScreenGui
-	Instance.new("UICorner", extBtn).CornerRadius = UDim.new(1, 0) applyNeonStroke(extBtn, 1.5) makeDraggable(extBtn) return extBtn
+local function ToggleMenuVisibility()
+	playClickAnimation(MainToggle)
+	if not MainFrame.Visible then
+		MainFrame.Size = UDim2.new(0, 480, 0, 0) MainFrame.Visible = true
+		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = UDim2.new(0, 480, 0, 330)}):Play()
+	else
+		local close = TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 480, 0, 0)})
+		close:Play() close.Completed:Connect(function() MainFrame.Visible = false end)
+	end
+end
+MainToggle.MouseButton1Click:Connect(ToggleMenuVisibility)
+
+local function CreateFloatButton(text, baseColor, yOffset)
+	local b = Instance.new("TextButton", ScreenGui) b.Size = UDim2.new(0, 55, 0, 55) b.Position = UDim2.new(0.88, 0, 0, yOffset) b.BackgroundColor3 = baseColor b.Text = text b.TextColor3 = Color3.fromRGB(255, 255, 255) b.Font = Enum.Font.SourceSansBold b.TextSize = 12 b.Visible = false b.ZIndex = 9
+	Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0) local s = applyNeonStroke(b, 1.5) makeDraggable(b) return b, s
 end
 
-FloatAimbotButton = CreateExternalButton("Aim\nOFF", Color3.fromRGB(130, 20, 30), 120)
-FloatFilterButton = CreateExternalButton("Focus\nPLAYERS", Color3.fromRGB(70, 25, 90), 270)
-FloatAppleButton = CreateExternalButton("Apple\nOFF", Color3.fromRGB(130, 100, 15), 195)
-FloatShieldButton = CreateExternalButton("Shield\nOFF", Color3.fromRGB(90, 20, 100), 195)
+local FloatAimbotButton, StrokeAim = CreateFloatButton("Aim\nOFF", Color3.fromRGB(130, 20, 30), 100)
+local FloatFilterButton, StrokeFilter = CreateFloatButton("Focus\nPLAYERS", Color3.fromRGB(70, 25, 90), 280)
+local FloatAppleButton, StrokeApple = CreateFloatButton("Apple\nOFF", Color3.fromRGB(130, 100, 15), 190)
+local FloatShieldButton, StrokeShield = CreateFloatButton("Shield\nOFF", Color3.fromRGB(90, 20, 100), 190)
 
-FovCircleFrame.Size = UDim2.new(0, FovRadiusValue * 2, 0, FovRadiusValue * 2) FovCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5) FovCircleFrame.Position = UDim2.new(0.5, 0, 0.5, -29) FovCircleFrame.BackgroundTransparency = 1 FovCircleFrame.Visible = AimbotSystemActive FovCircleFrame.Parent = ScreenGui
-Instance.new("UICorner", FovCircleFrame).CornerRadius = UDim.new(1, 0)
-local FovStroke = Instance.new("UIStroke") FovStroke.Color = Color3.fromRGB(255, 0, 50) FovStroke.Thickness = 1.2 FovStroke.Parent = FovCircleFrame
-CenterDot.Size = UDim2.new(0, 4, 0, 4) CenterDot.AnchorPoint = Vector2.new(0.5, 0.5) CenterDot.Position = UDim2.new(0.5, 0, 0.5, 0) CenterDot.BackgroundColor3 = Color3.fromRGB(255, 255, 255) CenterDot.BorderSizePixel = 0 CenterDot.Parent = FovCircleFrame
-Instance.new("UICorner", CenterDot).CornerRadius = UDim.new(1, 0)
+-- CORREÇÃO 1: Botões invisíveis agora mudam apenas Transparência (continuam clicáveis no mesmo lugar)
+local function UpdateFloatVisibility()
+	FloatAimbotButton.Visible = State.AimbotSystemActive
+	FloatFilterButton.Visible = State.AimbotSystemActive
+	FloatAppleButton.Visible = State.AppleSystemEquipped
+	FloatShieldButton.Visible = State.ShieldSystemEquipped
 
-local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, -20, 0, 30) TitleLabel.Position = UDim2.new(0, 10, 0, 5) TitleLabel.BackgroundTransparency = 1 TitleLabel.Text = "KuroNovaVoid Script v155" TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255) TitleLabel.Font = Enum.Font.SourceSansBold TitleLabel.TextSize = 16 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left TitleLabel.Parent = MainFrame
+	local trans = State.HideFloatingButtons and 1 or 0
+	
+	FloatAimbotButton.BackgroundTransparency = trans
+	FloatAimbotButton.TextTransparency = trans
+	StrokeAim.Transparency = trans
 
-local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 120, 1, -45) Sidebar.Position = UDim2.new(0, 5, 0, 40) Sidebar.BackgroundColor3 = Color3.fromRGB(12, 12, 12) Sidebar.Parent = MainFrame
+	FloatFilterButton.BackgroundTransparency = trans
+	FloatFilterButton.TextTransparency = trans
+	StrokeFilter.Transparency = trans
+
+	FloatAppleButton.BackgroundTransparency = trans
+	FloatAppleButton.TextTransparency = trans
+	StrokeApple.Transparency = trans
+
+	FloatShieldButton.BackgroundTransparency = trans
+	FloatShieldButton.TextTransparency = trans
+	StrokeShield.Transparency = trans
+end
+
+local FovCircleFrame = Instance.new("Frame", ScreenGui) FovCircleFrame.Size = UDim2.new(0, State.FovRadiusValue*2, 0, State.FovRadiusValue*2) FovCircleFrame.AnchorPoint = Vector2.new(0.5,0.5) FovCircleFrame.Position = UDim2.new(0.5,0,0.5,0) FovCircleFrame.BackgroundTransparency = 1 FovCircleFrame.Visible = State.AimbotSystemActive
+Instance.new("UICorner", FovCircleFrame).CornerRadius = UDim.new(1,0)
+local FovStroke = Instance.new("UIStroke", FovCircleFrame) FovStroke.Color = Color3.fromRGB(255, 0, 50) FovStroke.Thickness = 1.2
+local CenterDot = Instance.new("Frame", FovCircleFrame) CenterDot.Size = UDim2.new(0, 4, 0, 4) CenterDot.AnchorPoint = Vector2.new(0.5,0.5) CenterDot.Position = UDim2.new(0.5,0,0.5,0) CenterDot.BackgroundColor3 = Color3.fromRGB(255,255,255) Instance.new("UICorner", CenterDot).CornerRadius = UDim.new(1,0)
+
+local TitleLabel = Instance.new("TextLabel", MainFrame) TitleLabel.Size = UDim2.new(1, -20, 0, 30) TitleLabel.Position = UDim2.new(0, 10, 0, 5) TitleLabel.BackgroundTransparency = 1 TitleLabel.Text = "KuroNovaVoid Script v155" TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255) TitleLabel.Font = Enum.Font.SourceSansBold TitleLabel.TextSize = 16 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local Sidebar = Instance.new("Frame", MainFrame) Sidebar.Size = UDim2.new(0, 120, 1, -45) Sidebar.Position = UDim2.new(0, 5, 0, 40) Sidebar.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6) applyDarkStroke(Sidebar)
-local SidebarLayout = Instance.new("UIListLayout") SidebarLayout.Padding = UDim.new(0, 5) SidebarLayout.Parent = Sidebar
-local SidebarPadding = Instance.new("UIPadding") SidebarPadding.PaddingTop = UDim.new(0, 5) SidebarPadding.PaddingLeft = UDim.new(0, 5) SidebarPadding.PaddingRight = UDim.new(0, 5) SidebarPadding.Parent = Sidebar
+local SidebarLayout = Instance.new("UIListLayout", Sidebar) SidebarLayout.Padding = UDim.new(0, 5)
+local SidebarPadding = Instance.new("UIPadding", Sidebar) SidebarPadding.PaddingTop = UDim.new(0, 5) SidebarPadding.PaddingLeft = UDim.new(0, 5) SidebarPadding.PaddingRight = UDim.new(0, 5)
 
-local Container = Instance.new("Frame")
-Container.Size = UDim2.new(1, -140, 1, -50) Container.Position = UDim2.new(0, 132, 0, 42) Container.BackgroundTransparency = 1 Container.Parent = MainFrame
+local Container = Instance.new("Frame", MainFrame) Container.Size = UDim2.new(1, -140, 1, -50) Container.Position = UDim2.new(0, 132, 0, 42) Container.BackgroundTransparency = 1
 
 local currentTab = nil
-local function CreateTab(text)
-	local Btn = Instance.new("TextButton")
-	Btn.Size = UDim2.new(1, 0, 0, 32) Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 24) Btn.Text = text Btn.TextColor3 = Color3.fromRGB(200, 200, 200) Btn.Font = Enum.Font.SourceSansBold Btn.TextSize = 14 Btn.Parent = Sidebar
+local function CreateTab(text, customScrollSize)
+	local Btn = Instance.new("TextButton", Sidebar) Btn.Size = UDim2.new(1, 0, 0, 32) Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 24) Btn.Text = text Btn.TextColor3 = Color3.fromRGB(200, 200, 200) Btn.Font = Enum.Font.SourceSansBold Btn.TextSize = 14
 	Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 4) applyDarkStroke(Btn)
-	local Page = Instance.new("ScrollingFrame")
-	Page.Size = UDim2.new(1, 0, 1, 0) Page.BackgroundTransparency = 1 Page.ScrollBarThickness = 3 Page.Visible = false Page.Parent = Container
-	local PageLayout = Instance.new("UIListLayout") PageLayout.Padding = UDim.new(0, 6) PageLayout.Parent = Page
+	
+	local Page = Instance.new("ScrollingFrame", Container) Page.Size = UDim2.new(1, 0, 1, 0) Page.BackgroundTransparency = 1 Page.ScrollBarThickness = 4 Page.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 50) Page.Visible = false Page.CanvasSize = UDim2.new(0, 0, 0, customScrollSize or 500) Page.AutomaticSize = Enum.AutomaticSize.None
+	local PageLayout = Instance.new("UIListLayout", Page) PageLayout.Padding = UDim.new(0, 8) PageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local PagePadding = Instance.new("UIPadding", Page) PagePadding.PaddingTop = UDim.new(0, 4) PagePadding.PaddingBottom = UDim.new(0, 15) PagePadding.PaddingLeft = UDim.new(0, 2) PagePadding.PaddingRight = UDim.new(0, 6)
+	
 	Btn.MouseButton1Click:Connect(function()
 		playClickAnimation(Btn)
-		if currentTab then currentTab.Page.Visible = false currentTab.Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 24) currentTab.Btn.TextColor3 = Color3.fromRGB(200, 200, 200) end
+		if currentTab then 
+			currentTab.Page.Visible = false currentTab.Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 24) currentTab.Btn.TextColor3 = Color3.fromRGB(200, 200, 200) 
+		end
 		currentTab = {Page = Page, Btn = Btn} Page.Visible = true Btn.BackgroundColor3 = Color3.fromRGB(255, 0, 50) Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	end) return Page
 end
 
 local function AddTextBox(parent, placeholder)
-	local box = Instance.new("TextBox")
-	box.Size = UDim2.new(1, -10, 0, 35) box.BackgroundColor3 = Color3.fromRGB(25, 25, 25) box.PlaceholderText = placeholder box.Text = "" box.TextColor3 = Color3.fromRGB(255, 255, 255) box.PlaceholderColor3 = Color3.fromRGB(110, 110, 110) box.Font = Enum.Font.SourceSans box.TextSize = 14 box.Parent = parent
+	local box = Instance.new("TextBox", parent) box.Size = UDim2.new(1, -4, 0, 35) box.BackgroundColor3 = Color3.fromRGB(25, 25, 25) box.PlaceholderText = placeholder box.Text = "" box.TextColor3 = Color3.fromRGB(255, 255, 255) box.PlaceholderColor3 = Color3.fromRGB(110, 110, 110) box.Font = Enum.Font.SourceSans box.TextSize = 14
 	Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4) applyDarkStroke(box) return box
 end
 
 local function AddButton(parent, text, defaultColor)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, -10, 0, 35) btn.BackgroundColor3 = defaultColor or Color3.fromRGB(30, 30, 30) btn.Text = text btn.TextColor3 = Color3.fromRGB(255, 255, 255) btn.Font = Enum.Font.SourceSansBold btn.TextSize = 14 btn.Parent = parent
+	local btn = Instance.new("TextButton", parent) btn.Size = UDim2.new(1, -4, 0, 35) btn.BackgroundColor3 = defaultColor or Color3.fromRGB(30, 30, 30) btn.Text = text btn.TextColor3 = Color3.fromRGB(255, 255, 255) btn.Font = Enum.Font.SourceSansBold btn.TextSize = 14
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4) applyDarkStroke(btn) return btn
 end
 
-local PagePlayer = CreateTab("Player")
-local PageAimbot = CreateTab("Aimbot")
-local PageAttributes = CreateTab("Attributes")
-local PageConfig = CreateTab("Configurações")
-local PageCredits = CreateTab("Credits")
+local IsListeningForKey = false
+local CurrentListenAction = nil
+local KeybindButtons = {}
 
-local CreditText = Instance.new("TextLabel")
-CreditText.Size = UDim2.new(1, -10, 0, 180) CreditText.BackgroundTransparency = 1 CreditText.Text = "This script belongs and was created exclusively for KuroNovaVoid\n\nIf you are using this and you are not him congratulations\nFollow him on TikTok Alduffrydler\n\nAll rights reserved" CreditText.TextColor3 = Color3.fromRGB(255, 200, 0) CreditText.Font = Enum.Font.SourceSansItalic CreditText.TextSize = 14 CreditText.TextWrapped = true CreditText.Parent = PageCredits
+local function AddConfigBindRow(parent, actionName, explanation)
+	local RowFrame = Instance.new("Frame", parent) RowFrame.Size = UDim2.new(1, -4, 0, 95) RowFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 24)
+	Instance.new("UICorner", RowFrame).CornerRadius = UDim.new(0, 6) applyDarkStroke(RowFrame)
+	local UIList = Instance.new("UIListLayout", RowFrame) UIList.Padding = UDim.new(0, 3) UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	local UIPad = Instance.new("UIPadding", RowFrame) UIPad.PaddingTop = UDim.new(0, 5) UIPad.PaddingLeft = UDim.new(0, 8) UIPad.PaddingRight = UDim.new(0, 8)
+
+	local ExpLabel = Instance.new("TextLabel", RowFrame) ExpLabel.Size = UDim2.new(1, 0, 0, 35) ExpLabel.BackgroundTransparency = 1 ExpLabel.Font = Enum.Font.SourceSansItalic ExpLabel.TextSize = 13 ExpLabel.TextColor3 = Color3.fromRGB(180, 180, 180) ExpLabel.TextWrapped = true ExpLabel.TextXAlignment = Enum.TextXAlignment.Left ExpLabel.Text = explanation
+
+	local BindBtn = Instance.new("TextButton", RowFrame) BindBtn.Size = UDim2.new(1, 0, 0, 40) BindBtn.BackgroundColor3 = Color3.fromRGB(32, 32, 35) BindBtn.Font = Enum.Font.SourceSansBold BindBtn.TextSize = 14 BindBtn.TextColor3 = Color3.fromRGB(255, 215, 0) BindBtn.Text = actionName .. ": " .. tostring(State.Keybinds[actionName])
+	Instance.new("UICorner", BindBtn).CornerRadius = UDim.new(0, 4) applyDarkStroke(BindBtn)
+	
+	KeybindButtons[actionName] = BindBtn
+	
+	BindBtn.MouseButton1Click:Connect(function()
+		playClickAnimation(BindBtn)
+		if not IsListeningForKey then
+			IsListeningForKey = true CurrentListenAction = actionName
+			BindBtn.Text = "Pressione uma tecla..." BindBtn.BackgroundColor3 = Color3.fromRGB(120, 20, 30)
+		end
+	end)
+end
+
+local PagePlayer = CreateTab("Player", 500)
+local PageAimbot = CreateTab("Aimbot", 500)
+local PageAttributes = CreateTab("Attributes", 500)
+local PageConfig = CreateTab("Configurações", 900)
+local PageCredits = CreateTab("Credits", 500)
+
+local CreditText = Instance.new("TextLabel", PageCredits) CreditText.Size = UDim2.new(1, -10, 0, 150) CreditText.BackgroundTransparency = 1 CreditText.Text = "This script belongs and was created exclusively for KuroNovaVoid\n\nIf you are using this and you are not him, congratulations.\nFollow him on TikTok: Alduffrydler\n\nAll rights reserved." CreditText.TextColor3 = Color3.fromRGB(255, 200, 0) CreditText.Font = Enum.Font.SourceSansItalic CreditText.TextSize = 14 CreditText.TextWrapped = true
 
 local SpeedInput = AddTextBox(PagePlayer, "Executor Speed Example 50")
 local SpeedBtn = AddButton(PagePlayer, "Activate Speed")
 local InfJumpBtn = AddButton(PagePlayer, "Infinite Jump OFF")
 local NoclipBtn = AddButton(PagePlayer, "Noclip OFF")
+
 local AimToggleBtn = AddButton(PageAimbot, "Activate Aimbot System")
-local ModeToggleBtn = AddButton(PageAimbot, "Mode Dynamic", Color3.fromRGB(25, 50, 90))
+local ModeToggleBtn = AddButton(PageAimbot, "Mode 100 Focus", Color3.fromRGB(120, 25, 25))
 local TargetFilterBtn = AddButton(PageAimbot, "Focus Players", Color3.fromRGB(70, 25, 90))
 local FovInput = AddTextBox(PageAimbot, "FOV Circle Size Example 120")
 local FovApplyBtn = AddButton(PageAimbot, "Update FOV Size")
+
 local AppleMenuBtn = AddButton(PageAttributes, "Activate Apple System")
 local ShieldMenuBtn = AddButton(PageAttributes, "Activate Shield System")
 
-local function SetupBindButton(actionName, defaultText)
-	local btn = AddButton(PageConfig, actionName .. ": " .. defaultText)
-	KeybindButtons[actionName] = btn
-	btn.MouseButton1Click:Connect(function()
-		playClickAnimation(btn)
-		if not IsListeningForKey then
-			IsListeningForKey = true
-			CurrentListenAction = actionName
-			btn.Text = "Pressione uma tecla..."
-			btn.BackgroundColor3 = Color3.fromRGB(120, 20, 30)
-		end
+local HideFloatBtn = AddButton(PageConfig, "Invisibly Hide Buttons: OFF", Color3.fromRGB(40, 40, 45))
+
+AddConfigBindRow(PageConfig, "ToggleMenu", "Open/Close Menu Shortcut:\nPress key inside to change the main interface bind.")
+AddConfigBindRow(PageConfig, "Aimbot", "Aimbot Locking System:\nLock onto targets within your custom FOV area.")
+AddConfigBindRow(PageConfig, "Filter", "Filter Focus Target System:\nCycle target lock focus between Players, Bots/NPCs or All.")
+AddConfigBindRow(PageConfig, "Apple", "Golden Apple Consumable System:\nAuto-equip and continuously consume the golden item.")
+AddConfigBindRow(PageConfig, "Shield", "Energy Shield Defensive System:\nAuto-equip and maintain active defensive shield.")
+
+local function SyncVisuals()
+	if State.SpeedActive then SpeedBtn.Text = "Modified Speed: " .. tostring(State.TargetValueSpeed) SpeedBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50) SpeedInput.Text = tostring(State.TargetValueSpeed) else SpeedBtn.Text = "Activate Speed" SpeedBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30) end
+	InfJumpBtn.Text = State.InfiniteJumpActive and "Infinite Jump ON" or "Infinite Jump OFF" InfJumpBtn.BackgroundColor3 = State.InfiniteJumpActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
+	NoclipBtn.Text = State.NoclipActive and "Noclip ON" or "Noclip OFF" NoclipBtn.BackgroundColor3 = State.NoclipActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
+	AimToggleBtn.Text = State.AimbotSystemActive and "Deactivate Aimbot System" or "Activate Aimbot System" AimToggleBtn.BackgroundColor3 = State.AimbotSystemActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
+	FovCircleFrame.Visible = State.AimbotSystemActive FovInput.Text = tostring(State.FovRadiusValue) FovCircleFrame.Size = UDim2.new(0, State.FovRadiusValue*2, 0, State.FovRadiusValue*2)
+	ModeToggleBtn.Text = "Mode " .. (State.AimbotMode == "100% Focus" and "100 Focus" or "Dynamic") ModeToggleBtn.BackgroundColor3 = State.AimbotMode == "100% Focus" and Color3.fromRGB(120, 25, 25) or Color3.fromRGB(25, 50, 90)
+	TargetFilterBtn.Text = "Focus " .. (State.AimbotTargetFilter == "Bots" and "Bots NPCs" or State.AimbotTargetFilter == "All" and "All" or "Players") FloatFilterButton.Text = "Focus\n" .. State.AimbotTargetFilter:upper()
+	AppleMenuBtn.Text = State.AppleSystemEquipped and "Deactivate Apple System" or "Activate Apple System" AppleMenuBtn.BackgroundColor3 = State.AppleSystemEquipped and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
+	FloatAppleButton.Text = State.AppleEffectActive and "Apple\nON" or "Apple\nOFF" FloatAppleButton.BackgroundColor3 = State.AppleEffectActive and Color3.fromRGB(20, 130, 40) or Color3.fromRGB(130, 100, 15)
+	ShieldMenuBtn.Text = State.ShieldSystemEquipped and "Deactivate Shield System" or "Activate Shield System" ShieldMenuBtn.BackgroundColor3 = State.ShieldSystemEquipped and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
+	FloatShieldButton.Text = State.ShieldEffectActive and "Shield\nON" or "Shield\nOFF" FloatShieldButton.BackgroundColor3 = State.ShieldEffectActive and Color3.fromRGB(20, 130, 40) or Color3.fromRGB(90, 20, 100)
+	HideFloatBtn.Text = "Invisibly Hide Buttons: " .. (State.HideFloatingButtons and "ON" or "OFF") HideFloatBtn.BackgroundColor3 = State.HideFloatingButtons and Color3.fromRGB(120, 20, 30) or Color3.fromRGB(40, 40, 45)
+	for k, v in pairs(State.Keybinds) do if KeybindButtons[k] then KeybindButtons[k].Text = k .. ": " .. tostring(v) end end
+	UpdateFloatVisibility()
+end
+
+local function getInventory() return LocalPlayer:FindFirstChild("Inventory") or LocalPlayer:FindFirstChildOfClass("Backpack") end
+local function getCharacter() return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait() end
+local function getHandValue() local char = getCharacter() return char:FindFirstChild("Hand1") end
+local function findItemInInventory(itemName)
+	local inv = getInventory() if not inv then return nil end
+	for _, item in ipairs(inv:GetChildren()) do if item.Name:lower() == itemName:lower() then return item end end
+	return nil
+end
+
+local function ForceDeactivateShield()
+	State.ShieldSystemEquipped = false State.ShieldEffectActive = false
+	pcall(function()
+		local char = LocalPlayer.Character local shield = char and char:FindFirstChild("FireShield")
+		if shield then shield:FireServer(false) end
 	end)
 end
 
-SetupBindButton("Aimbot", "Nenhum")
-SetupBindButton("Filter", "Nenhum")
-SetupBindButton("Apple", "Nenhum")
-SetupBindButton("Shield", "Nenhum")
+local function ForceDeactivateApple()
+	State.AppleSystemEquipped = false State.AppleEffectActive = false
+end
 
-if SpeedActive then
-	SpeedBtn.Text = "Modified Speed " .. tostring(TargetValueSpeed)
-	SpeedBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
-	SpeedInput.Text = tostring(TargetValueSpeed)
+local function ToggleAppleSystem()
+	if State.AppleSystemEquipped then
+		ForceDeactivateApple()
+	else
+		ForceDeactivateShield()
+		State.AppleSystemEquipped = true
+	end
+	SyncVisuals() SaveConfig()
 end
-if InfiniteJumpActive then
-	StopLabel = "Infinite Jump ON"
-	InfJumpBtn.Text = StopLabel
-	InfJumpBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
+
+local function ToggleShieldSystem()
+	if State.ShieldSystemEquipped then
+		ForceDeactivateShield()
+	else
+		ForceDeactivateApple()
+		State.ShieldSystemEquipped = true
+	end
+	SyncVisuals() SaveConfig()
 end
-if NoclipActive then
-	NoclipBtn.Text = "Noclip ON"
-	NoclipBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
+
+local function CycleTargetFilter()
+	if State.AimbotTargetFilter == "Players" then State.AimbotTargetFilter = "Bots"
+	elseif State.AimbotTargetFilter == "Bots" then State.AimbotTargetFilter = "All"
+	else State.AimbotTargetFilter = "Players" end
+	CurrentAimbotTarget = nil if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
+	SyncVisuals() SaveConfig()
 end
-if AimbotSystemActive then
-	AimToggleBtn.Text = "Deactivate Aimbot System"
-	AimToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
-	FloatAimbotButton.Visible = true
-	FloatFilterButton.Visible = true
+
+local function ToggleAimbotSystem()
+	State.AimbotSystemActive = not State.AimbotSystemActive
+	if not State.AimbotSystemActive then
+		State.AimbotLockActive = false CurrentAimbotTarget = nil
+		if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
+	end
+	SyncVisuals() SaveConfig()
 end
-FovInput.Text = tostring(FovRadiusValue)
-if AimbotMode == "100% Focus" then
-	ModeToggleBtn.Text = "Mode 100 Focus"
-	ModeToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 25, 25)
-else
-	ModeToggleBtn.Text = "Mode Dynamic"
-	ModeToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 50, 90)
-end
-if AimbotTargetFilter == "Bots" then
-	TargetFilterBtn.Text = "Focus Bots NPCs"
-	FloatFilterButton.Text = "Focus\nBOTS"
-elseif AimbotTargetFilter == "All" then
-	TargetFilterBtn.Text = "Focus All"
-	FloatFilterButton.Text = "Focus\nALL"
-else
-	TargetFilterBtn.Text = "Focus Players"
-	FloatFilterButton.Text = "Focus\nPLAYERS"
-end
+
+SpeedBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(SpeedBtn) local num = tonumber(SpeedInput.Text)
+	if num then State.TargetValueSpeed = num State.SpeedActive = true else State.SpeedActive = false end
+	SyncVisuals() SaveConfig()
+end)
+
+InfJumpBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(InfJumpBtn) State.InfiniteJumpActive = not State.InfiniteJumpActive
+	SyncVisuals() SaveConfig()
+end)
+
+NoclipBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(NoclipBtn) State.NoclipActive = not State.NoclipActive
+	SyncVisuals() SaveConfig()
+end)
+
+AimToggleBtn.MouseButton1Click:Connect(ToggleAimbotSystem)
+ModeToggleBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(ModeToggleBtn) State.AimbotMode = (State.AimbotMode == "Dynamic" and "100% Focus" or "Dynamic")
+	CurrentAimbotTarget = nil if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
+	SyncVisuals() SaveConfig()
+end)
+
+TargetFilterBtn.MouseButton1Click:Connect(CycleTargetFilter)
+FovApplyBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(FovApplyBtn) local fv = tonumber(FovInput.Text) if fv then State.FovRadiusValue = fv end
+	SyncVisuals() SaveConfig()
+end)
+
+AppleMenuBtn.MouseButton1Click:Connect(ToggleAppleSystem)
+ShieldMenuBtn.MouseButton1Click:Connect(ToggleShieldSystem)
+
+HideFloatBtn.MouseButton1Click:Connect(function()
+	playClickAnimation(HideFloatBtn) State.HideFloatingButtons = not State.HideFloatingButtons
+	SyncVisuals()
+end)
+
+FloatAimbotButton.MouseButton1Click:Connect(function()
+	playClickAnimation(FloatAimbotButton) if not State.AimbotSystemActive then return end
+	State.AimbotLockActive = not State.AimbotLockActive
+	if not State.AimbotLockActive then CurrentAimbotTarget = nil end
+	FloatAimbotButton.Text = State.AimbotLockActive and "Aim\nON" or "Aim\nOFF"
+	FloatAimbotButton.BackgroundColor3 = State.AimbotLockActive and Color3.fromRGB(20, 130, 40) or Color3.fromRGB(130, 20, 30)
+end)
+FloatFilterButton.MouseButton1Click:Connect(CycleTargetFilter)
+FloatAppleButton.MouseButton1Click:Connect(function()
+	playClickAnimation(FloatAppleButton) if not State.AppleSystemEquipped then return end
+	State.AppleEffectActive = not State.AppleEffectActive
+	SyncVisuals()
+end)
+FloatShieldButton.MouseButton1Click:Connect(function()
+	playClickAnimation(FloatShieldButton) if not State.ShieldSystemEquipped then return end
+	State.ShieldEffectActive = not State.ShieldEffectActive
+	if not State.ShieldEffectActive then
+		pcall(function()
+			local char = LocalPlayer.Character local shield = char and char:FindFirstChild("FireShield")
+			if shield then shield:FireServer(false) end
+		end)
+	end
+	SyncVisuals()
+end)
 
 local function TriggerAction(actionName)
-	if actionName == "Aimbot" then
-		AimToggleBtn:GetMouseButton1ClickObjects()[1]:Fire()
-	elseif actionName == "Filter" then
-		TargetFilterBtn:GetMouseButton1ClickObjects()[1]:Fire()
-	elseif actionName == "Apple" then
-		AppleMenuBtn:GetMouseButton1ClickObjects()[1]:Fire()
-	elseif actionName == "Shield" then
-		ShieldMenuBtn:GetMouseButton1ClickObjects()[1]:Fire()
-	end
+	if actionName == "ToggleMenu" then ToggleMenuVisibility()
+	elseif actionName == "Aimbot" then ToggleAimbotSystem()
+	elseif actionName == "Filter" then CycleTargetFilter()
+	elseif actionName == "Apple" then ToggleAppleSystem()
+	elseif actionName == "Shield" then ToggleShieldSystem() end
 end
 
 UserInputService.InputBegan:Connect(function(input, processed)
@@ -557,20 +481,17 @@ UserInputService.InputBegan:Connect(function(input, processed)
 		if input.UserInputType == Enum.UserInputType.Keyboard then
 			local key = input.KeyCode
 			if key == Enum.KeyCode.Escape then
-				Keybinds[CurrentListenAction] = Enum.KeyCode.Unknown
-				KeybindButtons[CurrentListenAction].Text = CurrentListenAction .. ": Nenhum"
+				State.Keybinds[CurrentListenAction] = "Unknown"
 			else
-				Keybinds[CurrentListenAction] = key
-				KeybindButtons[CurrentListenAction].Text = CurrentListenAction .. ": " .. key.Name
+				State.Keybinds[CurrentListenAction] = key.Name
 			end
-			KeybindButtons[CurrentListenAction].BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-			IsListeningForKey = false
-			CurrentListenAction = nil
+			IsListeningForKey = false CurrentListenAction = nil
+			SyncVisuals() SaveConfig()
 		end
 	else
 		if input.UserInputType == Enum.UserInputType.Keyboard then
-			for action, bindedKey in pairs(Keybinds) do
-				if bindedKey ~= Enum.KeyCode.Unknown and input.KeyCode == bindedKey then
+			for action, bindedKeyName in pairs(State.Keybinds) do
+				if bindedKeyName ~= "Unknown" and input.KeyCode.Name == bindedKeyName then
 					TriggerAction(action)
 				end
 			end
@@ -578,95 +499,67 @@ UserInputService.InputBegan:Connect(function(input, processed)
 	end
 end)
 
-SpeedBtn.MouseButton1Click:Connect(function()
-	playClickAnimation(SpeedBtn) local num = tonumber(SpeedInput.Text)
-	if num then 
-		TargetValueSpeed = num SpeedActive = true SpeedBtn.Text = "Modified Speed " .. tostring(num) SpeedBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50)
-	else 
-		SpeedActive = false SpeedBtn.Text = "Default Speed" SpeedBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30) 
-	end
-end)
-
-InfJumpBtn.MouseButton1Click:Connect(function()
-	playClickAnimation(InfJumpBtn) InfiniteJumpActive = not InfiniteJumpActive
-	InfJumpBtn.Text = InfiniteJumpActive and "Infinite Jump ON" or "Infinite Jump OFF"
-	InfJumpBtn.BackgroundColor3 = InfiniteJumpActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
-end)
-
 UserInputService.JumpRequest:Connect(function()
-	if InfiniteJumpActive and LocalPlayer.Character then
-		local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if humanoid then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
+	if State.InfiniteJumpActive and LocalPlayer.Character then
+		local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid") if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
 	end
-end)
-
-NoclipBtn.MouseButton1Click:Connect(function()
-	playClickAnimation(NoclipBtn) NoclipActive = not NoclipActive
-	NoclipBtn.Text = NoclipActive and "Noclip ON" or "Noclip OFF"
-	NoclipBtn.BackgroundColor3 = NoclipActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
 end)
 
 RunService.Heartbeat:Connect(function()
 	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
 		local hrp = LocalPlayer.Character.HumanoidRootPart
-		if SpeedActive then
-			local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-			if humanoid and humanoid.MoveDirection.Magnitude > 0 then hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (TargetValueSpeed / 45)) end
+		if State.SpeedActive then
+			local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+			if hum and hum.MoveDirection.Magnitude > 0 then hrp.CFrame = hrp.CFrame + (hum.MoveDirection * (State.TargetValueSpeed / 45)) end
 		end
-		if NoclipActive then
+		if State.NoclipActive then
 			for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do if part:IsA("BasePart") then part.CanCollide = false end end
 		end
 	end
 end)
 
-local function CycleTargetFilter()
-	if AimbotTargetFilter == "Players" then 
-		AimbotTargetFilter = "Bots" 
-		TargetFilterBtn.Text = "Focus Bots NPCs" 
-		FloatFilterButton.Text = "Focus\nBOTS"
-	elseif AimbotTargetFilter == "Bots" then 
-		AimbotTargetFilter = "All" 
-		TargetFilterBtn.Text = "Focus All" 
-		FloatFilterButton.Text = "Focus\nALL"
-	else 
-		AimbotTargetFilter = "Players" 
-		TargetFilterBtn.Text = "Focus Players" 
-		FloatFilterButton.Text = "Focus\nPLAYERS" 
-	end
-	CurrentAimbotTarget = nil 
-	if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
-end
+local function isCharacterValid(char) return char and char.Parent and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").Health > 0 end
 
-TargetFilterBtn.MouseButton1Click:Connect(function() playClickAnimation(TargetFilterBtn) CycleTargetFilter() end)
-FloatFilterButton.MouseButton1Click:Connect(function() playClickAnimation(FloatFilterButton) CycleTargetFilter() end)
-
+-- CORREÇÃO 2: Sistema Inteligente e Otimizado focado na pasta workspace.Ai
 local function GetClosestPlayerSmart()
 	local centerScreen = CenterDot.AbsolutePosition local closestTarget = nil local lowestScore = math.huge
 	if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return nil end
-	local myPos = LocalPlayer.Character.HumanoidRootPart.Position
-	local listToScan = {}
-	if AimbotTargetFilter == "Players" then
-		for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and p.Character then table.insert(listToScan, p.Character) end end
-	elseif AimbotTargetFilter == "Bots" then
-		for _, obj in ipairs(workspace:GetDescendants()) do
-			if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(obj) and obj ~= LocalPlayer.Character then table.insert(listToScan, obj) end
-		end
-	else
-		for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and p.Character then table.insert(listToScan, p.Character) end end
-		for _, obj in ipairs(workspace:GetDescendants()) do
-			if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and not Players:GetPlayerFromCharacter(obj) and obj ~= LocalPlayer.Character then table.insert(listToScan, obj) end
+	local myPos = LocalPlayer.Character.HumanoidRootPart.Position local listToScan = {}
+	
+	-- Puxa Jogadores Reais se selecionado
+	if State.AimbotTargetFilter == "Players" or State.AimbotTargetFilter == "All" then
+		for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and p.Character and p.Character.Parent then table.insert(listToScan, p.Character) end end
+	end
+	
+	-- Puxa BOTS direto e exclusivamente da pasta workspace.Ai (Ultra rápido e sem lag)
+	if State.AimbotTargetFilter == "Bots" or State.AimbotTargetFilter == "All" then
+		local PastaAi = workspace:FindFirstChild("Ai")
+		if PastaAi then
+			for _, obj in ipairs(PastaAi:GetChildren()) do
+				if obj:IsA("Model") and obj ~= LocalPlayer.Character then
+					local hum = obj:FindFirstChildOfClass("Humanoid")
+					local hrp = obj:FindFirstChild("HumanoidRootPart")
+					if hum and hrp and hum.Health > 0 then
+						table.insert(listToScan, obj)
+					end
+				end
+			end
 		end
 	end
+	
 	for _, char in ipairs(listToScan) do
-		local hrp = char:FindFirstChild("HumanoidRootPart") local hum = char:FindFirstChildOfClass("Humanoid")
-		if hrp and hum and hum.Health > 0 then
-			local targetPart = char:FindFirstChild("Head") or hrp
-			local screenPos, onScreen = Camera:WorldToScreenPoint(targetPart.Position)
-			if onScreen then
-				local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
-				if distanceToCenter < FovRadiusValue then
-					local distanceInStuds = (targetPart.Position - myPos).Magnitude
-					local score = (distanceToCenter * 0.7) + (distanceInStuds * 0.3)
-					if score < lowestScore then lowestScore = score closestTarget = char end
+		if char and char.Parent then
+			local hrp = char:FindFirstChild("HumanoidRootPart") local hum = char:FindFirstChildOfClass("Humanoid")
+			if hrp and hum and hum.Health > 0 then
+				local targetPart = char:FindFirstChild("Head") or hrp
+				local screenPos, onScreen = Camera:WorldToScreenPoint(targetPart.Position)
+				if onScreen then
+					local distToCenter = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
+					if distToCenter < State.FovRadiusValue then
+						local distInStuds = (targetPart.Position - myPos).Magnitude
+						local score = (distToCenter * 0.7) + (distInStuds * 0.3)
+						if score < lowestScore then lowestScore = score closestTarget = char end
+					end
 				end
 			end
 		end
@@ -676,229 +569,79 @@ end
 
 local function ApplyHighlightToTarget(targetChar)
 	if CurrentTargetHighlight and CurrentTargetHighlight.Parent then if CurrentTargetHighlight.Adornee == targetChar then return end CurrentTargetHighlight:Destroy() end
-	if targetChar then
-		local hl = Instance.new("Highlight") hl.Name = "AimbotTargetHighlight" hl.FillTransparency = 0.7 hl.OutlineTransparency = 0 hl.Adornee = targetChar hl.Parent = targetChar CurrentTargetHighlight = hl
+	if targetChar and targetChar.Parent then
+		local hl = Instance.new("Highlight", targetChar) hl.Name = "AimbotTargetHighlight" hl.FillTransparency = 0.7 hl.OutlineTransparency = 0 hl.Adornee = targetChar CurrentTargetHighlight = hl
 	end
 end
 
-local function ClearHighlight() if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end end
-local function isCharacterValid(char) return char and char.Parent and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").Health > 0 end
-
-ModeToggleBtn.MouseButton1Click:Connect(function()
-	playClickAnimation(ModeToggleBtn)
-	if AimbotMode == "Dynamic" then AimbotMode = "100% Focus" ModeToggleBtn.Text = "Mode 100 Focus" ModeToggleBtn.BackgroundColor3 = Color3.fromRGB(120, 25, 25)
-	else AimbotMode = "Dynamic" ModeToggleBtn.Text = "Mode Dynamic" ModeToggleBtn.BackgroundColor3 = Color3.fromRGB(25, 50, 90) end
-	CurrentAimbotTarget = nil ClearHighlight()
-end)
-
-FovApplyBtn.MouseButton1Click:Connect(function() 
-	playClickAnimation(FovApplyBtn) local fv = tonumber(FovInput.Text) 
-	if fv then 
-		FovRadiusValue = fv FovCircleFrame.Size = UDim2.new(0, fv * 2, 0, fv * 2) 
-	end 
-end)
-
-AimToggleBtn.MouseButton1Click:Connect(function()
-	playClickAnimation(AimToggleBtn) AimbotSystemActive = not AimbotSystemActive
-	AimToggleBtn.Text = AimbotSystemActive and "Deactivate Aimbot System" or "Activate Aimbot System"
-	AimToggleBtn.BackgroundColor3 = AimbotSystemActive and Color3.fromRGB(15, 120, 50) or Color3.fromRGB(30, 30, 30)
-	FovCircleFrame.Visible = AimbotSystemActive 
-	FloatAimbotButton.Visible = AimbotSystemActive 
-	FloatFilterButton.Visible = AimbotSystemActive 
-	if not AimbotSystemActive then
-		AimbotLockActive = false CurrentAimbotTarget = nil ClearHighlight() 
-		FloatAimbotButton.Text = "Aim\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30)
-	end
-end)
-
-FloatAimbotButton.MouseButton1Click:Connect(function()
-	playClickAnimation(FloatAimbotButton) if not AimbotSystemActive then return end
-	AimbotLockActive = not AimbotLockActive
-	if AimbotLockActive then
-		local t = GetClosestPlayerSmart()
-		if t then CurrentAimbotTarget = t FloatAimbotButton.Text = "Aim\nON" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(20, 130, 40)
-		else AimbotLockActive = false FloatAimbotButton.Text = "Aim\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30) end
-	else CurrentAimbotTarget = nil FloatAimbotButton.Text = "Aim\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30) end
-end)
-
-AppleMenuBtn.MouseButton1Click:Connect(function()
-	playClickAnimation(AppleMenuBtn)
-	if AppleSystemEquipped then 
-		AppleSystemEquipped = false
-		AppleEffectActive = false
-		FloatAppleButton.Visible = false
-		FloatAppleButton.Text = "Apple\nOFF" 
-		FloatAppleButton.BackgroundColor3 = Color3.fromRGB(130, 100, 15)
-		AppleMenuBtn.Text = "Activate Apple System" 
-		AppleMenuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	else
-		if ShieldSystemEquipped then
-			ShieldSystemEquipped = false
-			ShieldEffectActive = false
-			FloatShieldButton.Visible = false
-			FloatShieldButton.Text = "Shield\nOFF"
-			FloatShieldButton.BackgroundColor3 = Color3.fromRGB(90, 20, 100)
-			ShieldMenuBtn.Text = "Activate Shield System"
-			ShieldMenuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-			pcall(function()
-				local char = LocalPlayer.Character
-				if char then
-					local shield = char:FindFirstChild("FireShield")
-					if shield then shield:FireServer(false) end
+RunService.RenderStepped:Connect(function()
+	local h = (tick() % 5) / 5 local rainbow = Color3.fromHSV(h, 0.9, 0.9)
+	if CurrentTargetHighlight and CurrentTargetHighlight.Parent then CurrentTargetHighlight.OutlineColor = rainbow CurrentTargetHighlight.FillColor = rainbow end
+	if State.AimbotSystemActive then
+		local scanTarget = GetClosestPlayerSmart()
+		if State.AimbotLockActive then
+			if State.AimbotMode == "100% Focus" then
+				if not CurrentAimbotTarget or not isCharacterValid(CurrentAimbotTarget) then
+					CurrentAimbotTarget = scanTarget
 				end
-			end)
-		end
-		AppleSystemEquipped = true 
-		AppleMenuBtn.Text = "Deactivate Apple System" 
-		AppleMenuBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50) 
-		FloatAppleButton.Visible = true
-	end
-end)
-
-ShieldMenuBtn.MouseButton1Click:Connect(function()
-	playClickAnimation(ShieldMenuBtn)
-	if ShieldSystemEquipped then 
-		ShieldSystemEquipped = false
-		ShieldEffectActive = false
-		FloatShieldButton.Visible = false
-		FloatShieldButton.Text = "Shield\nOFF" 
-		FloatShieldButton.BackgroundColor3 = Color3.fromRGB(90, 20, 100)
-		ShieldMenuBtn.Text = "Activate Shield System" 
-		ShieldMenuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-		pcall(function()
-			local char = LocalPlayer.Character
-			if char then
-				local shield = char:FindFirstChild("FireShield")
-				if shield then shield:FireServer(false) end
+				if CurrentAimbotTarget and isCharacterValid(CurrentAimbotTarget) then
+					ApplyHighlightToTarget(CurrentAimbotTarget)
+					local targetPos = CurrentAimbotTarget:FindFirstChild("Head") and CurrentAimbotTarget.Head.Position or CurrentAimbotTarget.HumanoidRootPart.Position
+					Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+				else
+					CurrentAimbotTarget = nil if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
+					State.AimbotLockActive = false FloatAimbotButton.Text = "Aim\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30)
+				end
+			elseif State.AimbotMode == "Dynamic" then
+				if scanTarget and isCharacterValid(scanTarget) then
+					CurrentAimbotTarget = scanTarget ApplyHighlightToTarget(scanTarget)
+					local targetPos = scanTarget:FindFirstChild("Head") and scanTarget.Head.Position or scanTarget.HumanoidRootPart.Position
+					Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+				else
+					CurrentAimbotTarget = nil if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
+					State.AimbotLockActive = false FloatAimbotButton.Text = "Aim\nOFF" FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30)
+				end
 			end
-		end)
-	else
-		if AppleSystemEquipped then
-			AppleSystemEquipped = false
-			AppleEffectActive = false
-			FloatAppleButton.Visible = false
-			FloatAppleButton.Text = "Apple\nOFF"
-			FloatAppleButton.BackgroundColor3 = Color3.fromRGB(130, 100, 15)
-			AppleMenuBtn.Text = "Activate Apple System"
-			AppleMenuBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+		else
+			if scanTarget and isCharacterValid(scanTarget) then ApplyHighlightToTarget(scanTarget) else if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end end
+			CurrentAimbotTarget = nil
 		end
-		ShieldSystemEquipped = true 
-		ShieldMenuBtn.Text = "Deactivate Shield System" 
-		ShieldMenuBtn.BackgroundColor3 = Color3.fromRGB(15, 120, 50) 
-		FloatShieldButton.Visible = true
-	end
-end)
-
-FloatAppleButton.MouseButton1Click:Connect(function()
-	playClickAnimation(FloatAppleButton) if not AppleSystemEquipped then return end
-	AppleEffectActive = not AppleEffectActive
-	if AppleEffectActive then FloatAppleButton.Text = "Apple\nON" FloatAppleButton.BackgroundColor3 = Color3.fromRGB(20, 130, 40)
-	else FloatAppleButton.Text = "Apple\nOFF" FloatAppleButton.BackgroundColor3 = Color3.fromRGB(130, 100, 15) end
-end)
-
-FloatShieldButton.MouseButton1Click:Connect(function()
-	playClickAnimation(FloatShieldButton) if not ShieldSystemEquipped then return end
-	ShieldEffectActive = not ShieldEffectActive
-	if ShieldEffectActive then 
-		FloatShieldButton.Text = "Shield\nON" FloatShieldButton.BackgroundColor3 = Color3.fromRGB(20, 130, 40)
 	else
-		FloatShieldButton.Text = "Shield\nOFF" FloatShieldButton.BackgroundColor3 = Color3.fromRGB(90, 20, 100)
-		pcall(function()
-			local char = LocalPlayer.Character
-			if char then
-				local shield = char:FindFirstChild("FireShield")
-				if shield then shield:FireServer(false) end
-			end
-		end)
+		if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end CurrentAimbotTarget = nil
 	end
 end)
 
 task.spawn(function()
-	local ReplicatedStorage = game:GetService("ReplicatedStorage") 
-	local remotes = ReplicatedStorage:WaitForChild("Remotes", 5) 
-	local equipRemote = remotes and remotes:WaitForChild("Equip", 5)
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local remotes = ReplicatedStorage:WaitForChild("Remotes", 5) local equipRemote = remotes and remotes:WaitForChild("Equip", 5)
 	while true do
 		task.wait(0.05)
-		if AppleSystemEquipped then
+		if State.AppleSystemEquipped then
 			local appleItem = findItemInInventory("Golden Apple")
 			if appleItem then
-				local hand = getHandValue() 
-				if not hand or not hand.Value or tostring(hand.Value) ~= appleItem.Name then 
-					if equipRemote then 
-						pcall(function() equipRemote:FireServer(appleItem, "Hand1") end) 
-					end 
-				end
-				if AppleEffectActive then
-					local character = getCharacter() 
-					local remote = character:FindFirstChild(appleItem.Name) and character[appleItem.Name]:FindFirstChild("Data")
-					if remote then 
-						pcall(function() remote:FireServer(true) end) 
-						task.wait(COOLDOWN) 
-						pcall(function() remote:FireServer(false, true) end) 
-					end
+				local hand = getHandValue()
+				if not hand or not hand.Value or tostring(hand.Value) ~= appleItem.Name then if equipRemote then pcall(function() equipRemote:FireServer(appleItem, "Hand1") end) end end
+				if State.AppleEffectActive then
+					local char = getCharacter() local remote = char:FindFirstChild(appleItem.Name) and char[appleItem.Name]:FindFirstChild("Data")
+					if remote then pcall(function() remote:FireServer(true) end) task.wait(COOLDOWN) pcall(function() remote:FireServer(false, true) end) end
 				end
 			end
 		end
-		if ShieldSystemEquipped then
+		if State.ShieldSystemEquipped then
 			local shieldItem = findItemInInventory("Shield") or findItemInInventory("FireShield")
 			if shieldItem then
-				local hand = getHandValue() 
-				if not hand or not hand.Value or tostring(hand.Value) ~= shieldItem.Name then 
-					if equipRemote then 
-						pcall(function() equipRemote:FireServer(shieldItem, "Hand1") end) 
-					end 
-				end
-				if ShieldEffectActive then
-					local char = LocalPlayer.Character
-					if char then
-						local shield = char:FindFirstChild("FireShield")
-						if shield then 
-							pcall(function() shield:FireServer(true) end) 
-						end
-					end
+				local hand = getHandValue()
+				if not hand or not hand.Value or tostring(hand.Value) ~= shieldItem.Name then if equipRemote then pcall(function() equipRemote:FireServer(shieldItem, "Hand1") end) end end
+				if State.ShieldEffectActive then
+					local char = LocalPlayer.Character local shield = char and char:FindFirstChild("FireShield")
+					if shield then pcall(function() shield:FireServer(true) end) end
 				end
 			end
 		end
 	end
 end)
 
-RunService.RenderStepped:Connect(function()
-	local h = (tick() % 5) / 5 local rainbowColor = Color3.fromHSV(h, 0.9, 0.9)
-	if CurrentTargetHighlight and CurrentTargetHighlight.Parent then CurrentTargetHighlight.OutlineColor = rainbowColor CurrentTargetHighlight.FillColor = rainbowColor end
-	if AimbotSystemActive then
-		local scanTarget = GetClosestPlayerSmart()
-		if AimbotLockActive then
-			if AimbotMode == "100% Focus" and CurrentAimbotTarget and isCharacterValid(CurrentAimbotTarget) then
-				ApplyHighlightToTarget(CurrentAimbotTarget) 
-				local targetPos = CurrentAimbotTarget:FindFirstChild("Head") and CurrentAimbotTarget.Head.Position or CurrentAimbotTarget.HumanoidRootPart.Position 
-				Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-			elseif AimbotMode == "Dynamic" and scanTarget and isCharacterValid(scanTarget) then
-				CurrentAimbotTarget = scanTarget 
-				ApplyHighlightToTarget(scanTarget) 
-				local targetPos = CurrentAimbotTarget:FindFirstChild("Head") and CurrentAimbotTarget.Head.Position or CurrentAimbotTarget.HumanoidRootPart.Position 
-				Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
-			else
-				CurrentAimbotTarget = nil 
-				ClearHighlight() 
-				AimbotLockActive = false 
-				FloatAimbotButton.Text = "Aim\nOFF" 
-				FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(130, 20, 30)
-			end
-		else
-			if scanTarget and isCharacterValid(scanTarget) then 
-				ApplyHighlightToTarget(scanTarget) 
-			else 
-				ClearHighlight() 
-			end 
-			CurrentAimbotTarget = nil
-		end
-	else 
-		ClearHighlight() 
-		CurrentAimbotTarget = nil 
-	end
-end)
-
-local sidebarButtons = Sidebar:GetChildren()
-for _, obj in ipairs(sidebarButtons) do
+for _, obj in ipairs(Sidebar:GetChildren()) do
 	if obj:IsA("TextButton") and obj.Text == "Player" then currentTab = {Page = PagePlayer, Btn = obj} PagePlayer.Visible = true obj.BackgroundColor3 = Color3.fromRGB(255, 0, 50) obj.TextColor3 = Color3.fromRGB(255, 255, 255) break end
 end
+SyncVisuals()
