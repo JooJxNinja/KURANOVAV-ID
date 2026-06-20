@@ -206,7 +206,6 @@ local FloatFilterButton, StrokeFilter = CreateFloatButton("Focus\nPLAYERS", Colo
 local FloatAppleButton, StrokeApple = CreateFloatButton("Apple\nOFF", Color3.fromRGB(130, 100, 15), 190)
 local FloatShieldButton, StrokeShield = CreateFloatButton("Shield\nOFF", Color3.fromRGB(90, 20, 100), 190)
 
--- CORREÇÃO 1: Botões invisíveis agora mudam apenas Transparência (continuam clicáveis no mesmo lugar)
 local function UpdateFloatVisibility()
 	FloatAimbotButton.Visible = State.AimbotSystemActive
 	FloatFilterButton.Visible = State.AimbotSystemActive
@@ -232,7 +231,8 @@ local function UpdateFloatVisibility()
 	StrokeShield.Transparency = trans
 end
 
-local FovCircleFrame = Instance.new("Frame", ScreenGui) FovCircleFrame.Size = UDim2.new(0, State.FovRadiusValue*2, 0, State.FovRadiusValue*2) FovCircleFrame.AnchorPoint = Vector2.new(0.5,0.5) FovCircleFrame.Position = UDim2.new(0.5,0,0.5,0) FovCircleFrame.BackgroundTransparency = 1 FovCircleFrame.Visible = State.AimbotSystemActive
+local FovCircleFrame = Instance.new("Frame", ScreenGui) FovCircleFrame.Size = UDim2.new(0, State.FovRadiusValue*2, 0, State.FovRadiusValue*2) FovCircleFrame.AnchorPoint = Vector2.new(0.5,0.5)
+FovCircleFrame.Position = UDim2.new(0.5,0,0.5,-29) FovCircleFrame.BackgroundTransparency = 1 FovCircleFrame.Visible = State.AimbotSystemActive
 Instance.new("UICorner", FovCircleFrame).CornerRadius = UDim.new(1,0)
 local FovStroke = Instance.new("UIStroke", FovCircleFrame) FovStroke.Color = Color3.fromRGB(255, 0, 50) FovStroke.Thickness = 1.2
 local CenterDot = Instance.new("Frame", FovCircleFrame) CenterDot.Size = UDim2.new(0, 4, 0, 4) CenterDot.AnchorPoint = Vector2.new(0.5,0.5) CenterDot.Position = UDim2.new(0.5,0,0.5,0) CenterDot.BackgroundColor3 = Color3.fromRGB(255,255,255) Instance.new("UICorner", CenterDot).CornerRadius = UDim.new(1,0)
@@ -520,18 +520,15 @@ end)
 
 local function isCharacterValid(char) return char and char.Parent and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").Health > 0 end
 
--- CORREÇÃO 2: Sistema Inteligente e Otimizado focado na pasta workspace.Ai
 local function GetClosestPlayerSmart()
 	local centerScreen = CenterDot.AbsolutePosition local closestTarget = nil local lowestScore = math.huge
 	if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return nil end
 	local myPos = LocalPlayer.Character.HumanoidRootPart.Position local listToScan = {}
 	
-	-- Puxa Jogadores Reais se selecionado
 	if State.AimbotTargetFilter == "Players" or State.AimbotTargetFilter == "All" then
 		for _, p in ipairs(Players:GetPlayers()) do if p ~= LocalPlayer and p.Character and p.Character.Parent then table.insert(listToScan, p.Character) end end
 	end
 	
-	-- Puxa BOTS direto e exclusivamente da pasta workspace.Ai (Ultra rápido e sem lag)
 	if State.AimbotTargetFilter == "Bots" or State.AimbotTargetFilter == "All" then
 		local PastaAi = workspace:FindFirstChild("Ai")
 		if PastaAi then
