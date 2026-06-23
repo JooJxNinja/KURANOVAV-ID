@@ -8,11 +8,55 @@ local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 
 local ImageName = "KURANOVAVGUI.png"
-local ImageUrl = "ttps://raw.githubusercontent.com/JooJxNinja/KURANOVAV-ID/refs/heads/main/file_000000002918720ea92188a1836db5bf.png"
+local ImageUrl = "https://raw.githubusercontent.com/JooJxNinja/KURANOVAV-ID/refs/heads/main/file_000000002918720ea92188a1836db5bf.png"
 local FallbackAssetId = "rbxassetid://135835948961725"
 
 if not isfile(ImageName) then
-	pcall(function() writefile(ImageName, game:HttpGet(ImageUrl)) end)
+	local baixadoComSucesso = false
+	local dadosImagem = nil
+
+	local requestFunc = request or http_request or (syn and syn.request) or (fluxus and fluxus.request)
+	if requestFunc then
+		local sucesso, resposta = pcall(function()
+			return requestFunc({
+				Url = ImageUrl,
+				Method = "GET",
+				Headers = {
+					["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+				}
+			})
+		end)
+		if sucesso and resposta and resposta.StatusCode == 200 and resposta.Body then
+			dadosImagem = resposta.Body
+			baixadoComSucesso = true
+		end
+	end
+
+	if not baixadoComSucesso then
+		local sucesso, resultado = pcall(function()
+			return game:HttpGet(ImageUrl)
+		end)
+		if sucesso and resultado and #resultado > 100 then
+			dadosImagem = resultado
+			baixadoComSucesso = true
+		end
+	end
+
+	if not baixadoComSucesso then
+		local sucesso, resultado = pcall(function()
+			return game:HttpGetAsync(ImageUrl)
+		end)
+		if sucesso and resultado and #resultado > 100 then
+			dadosImagem = resultado
+			baixadoComSucesso = true
+		end
+	end
+
+	if baixadoComSucesso and dadosImagem then
+		pcall(function()
+			writefile(ImageName, dadosImagem)
+		end)
+	end
 end
 
 local AssetId = isfile(ImageName) and getcustomasset(ImageName) or FallbackAssetId
@@ -176,11 +220,13 @@ task.spawn(function()
 	end)
 end)
 
-local function makeDraggable(frame)
+local function makeDraggable(clickFrame, objectToMove)
 	local dragging, dragInput, dragStart, startPos
-	frame.InputBegan:Connect(function(input)
+	objectToMove = objectToMove or clickFrame
+
+	clickFrame.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true dragStart = input.Position startPos = frame.Position
+			dragging = true dragStart = input.Position startPos = objectToMove.Position
 			
 			if UserInputService.KeyboardEnabled then
 				UserInputService.MouseBehavior = Enum.MouseBehavior.Default
@@ -193,11 +239,11 @@ local function makeDraggable(frame)
 			end)
 		end
 	end)
-	frame.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+	clickFrame.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
 	UserInputService.InputChanged:Connect(function(input)
 		if input == dragInput and dragging then
 			local delta = input.Position - dragStart
-			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+			objectToMove.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 			if UserInputService.KeyboardEnabled then
 				UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 			end
@@ -225,7 +271,7 @@ Instance.new("UICorner", MainToggle).CornerRadius = UDim.new(0.2, 0) applyNeonSt
 
 local MainFrame = Instance.new("Frame", ScreenGui) MainFrame.Size = UDim2.new(0, 480, 0, 330) MainFrame.Position = UDim2.new(0.5, -240, 0.5, -165) MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 18) MainFrame.Visible = false MainFrame.ClipsDescendants = true
 MainFrame.Active = true 
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8) applyNeonStroke(MainFrame, 1.8) makeDraggable(MainFrame)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 8) applyNeonStroke(MainFrame, 1.8)
 
 local function ToggleMenuVisibility()
 	playClickAnimation(MainToggle)
@@ -286,6 +332,8 @@ local FovStroke = Instance.new("UIStroke", FovCircleFrame) FovStroke.Color = Col
 local CenterDot = Instance.new("Frame", FovCircleFrame) CenterDot.Size = UDim2.new(0, 4, 0, 4) CenterDot.AnchorPoint = Vector2.new(0.5,0.5) CenterDot.Position = UDim2.new(0.5,0,0.5,0) CenterDot.BackgroundColor3 = Color3.fromRGB(255,255,255) Instance.new("UICorner", CenterDot).CornerRadius = UDim.new(1,0)
 
 local TitleLabel = Instance.new("TextLabel", MainFrame) TitleLabel.Size = UDim2.new(1, -20, 0, 30) TitleLabel.Position = UDim2.new(0, 10, 0, 5) TitleLabel.BackgroundTransparency = 1 TitleLabel.Text = "KuroNovaVoid Script v155" TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255) TitleLabel.Font = Enum.Font.SourceSansBold TitleLabel.TextSize = 16 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Active = true
+makeDraggable(TitleLabel, MainFrame)
 
 local Sidebar = Instance.new("Frame", MainFrame) Sidebar.Size = UDim2.new(0, 120, 1, -45) Sidebar.Position = UDim2.new(0, 5, 0, 40) Sidebar.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 6) applyDarkStroke(Sidebar)
@@ -434,7 +482,6 @@ local function findItemInInventory(itemName)
 	return nil
 end
 
--- EXCLUSIVIDADE ABSOLUTA: Lógicas de ativação mútua exclusivas (Se um liga, o outro morre)
 local function ToggleAppleSystem()
 	State.AppleEffectActive = not State.AppleEffectActive
 	if State.AppleEffectActive then
@@ -656,33 +703,51 @@ RunService.RenderStepped:Connect(function()
 	
 	if MainFrame.Visible then 
 		if UserInputService.KeyboardEnabled then
-			UserInputService.MouseBehavior = Enum.MouseBehavior.Default 
+			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+			UserInputService.ModalEnabled = true
 		end
+		if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end 
+		CurrentAimbotTarget = nil
 		return 
+	else
+		if UserInputService.KeyboardEnabled and not (State.AimbotSystemActive and State.AimbotLockActive and CurrentAimbotTarget) then
+			UserInputService.ModalEnabled = false
+		end
 	end
 
 	if State.AimbotSystemActive and State.AimbotLockActive then
 		local scanTarget = GetClosestPlayerSmart()
+		
 		if State.AimbotMode == "100% Focus" then
 			if not CurrentAimbotTarget or not isCharacterValid(CurrentAimbotTarget) then CurrentAimbotTarget = scanTarget end
+			
 			if CurrentAimbotTarget and isCharacterValid(CurrentAimbotTarget) then
+				if UserInputService.KeyboardEnabled then UserInputService.ModalEnabled = false end 
 				local targetPos = CurrentAimbotTarget:FindFirstChild("Head") and CurrentAimbotTarget.Head.Position or CurrentAimbotTarget.HumanoidRootPart.Position
 				Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos) ApplyHighlightToTarget(CurrentAimbotTarget)
 			else
+				if UserInputService.KeyboardEnabled then UserInputService.ModalEnabled = true end 
 				CurrentAimbotTarget = nil 
 				if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
 			end
+			
 		elseif State.AimbotMode == "Dynamic" then
 			if scanTarget and isCharacterValid(scanTarget) then
+				if UserInputService.KeyboardEnabled then UserInputService.ModalEnabled = false end 
 				CurrentAimbotTarget = scanTarget ApplyHighlightToTarget(scanTarget)
 				local targetPos = scanTarget:FindFirstChild("Head") and scanTarget.Head.Position or scanTarget.HumanoidRootPart.Position
 				Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
 			else
+				if UserInputService.KeyboardEnabled then UserInputService.ModalEnabled = true end 
 				CurrentAimbotTarget = nil 
 				if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end
 			end
 		end
 	else
+		if UserInputService.KeyboardEnabled then
+			UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+			UserInputService.ModalEnabled = true 
+		end
 		if CurrentTargetHighlight then CurrentTargetHighlight:Destroy() CurrentTargetHighlight = nil end 
 		CurrentAimbotTarget = nil
 	end
@@ -722,4 +787,3 @@ for _, obj in ipairs(Sidebar:GetChildren()) do
 	if obj:IsA("TextButton") and obj.Text == "Player" then currentTab = {Page = PagePlayer, Btn = obj} PagePlayer.Visible = true obj.BackgroundColor3 = Color3.fromRGB(255, 0, 50) obj.TextColor3 = Color3.fromRGB(255, 255, 255) break end
 end
 SyncVisuals()
-v
