@@ -1,0 +1,279 @@
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local player = Players.LocalPlayer
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "FarmGUI"
+gui.IgnoreGuiInset = true
+gui.ResetOnSpawn = false
+gui.DisplayOrder = 999999
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 45, 0, 45)
+toggleBtn.Position = UDim2.new(0, 15, 0.5, -22)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+toggleBtn.Text = "M"
+toggleBtn.TextColor3 = Color3.fromRGB(230, 230, 255)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 18
+toggleBtn.BorderSizePixel = 0
+toggleBtn.ZIndex = 1000001
+toggleBtn.Parent = gui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(1, 0)
+toggleCorner.Parent = toggleBtn
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 160)
+frame.Position = UDim2.new(0.5, -100, 0.35, 0)
+frame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Visible = true
+frame.ZIndex = 1000000
+frame.Parent = gui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 10)
+frameCorner.Parent = frame
+
+local dragTime = 0
+toggleBtn.MouseButton1Click:Connect(function()
+    if tick() - dragTime < 0.2 then return end
+    frame.Visible = not frame.Visible
+    toggleBtn.BackgroundColor3 = frame.Visible and Color3.fromRGB(40, 40, 60) or Color3.fromRGB(20, 20, 30)
+end)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -16, 0, 25)
+title.Position = UDim2.new(0, 8, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "PREMIUM v2"
+title.TextColor3 = Color3.fromRGB(230, 230, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 1000000
+title.Parent = frame
+
+local farmPage = Instance.new("Frame")
+farmPage.Size = UDim2.new(1, -16, 1, -40)
+farmPage.Position = UDim2.new(0, 8, 0, 35)
+farmPage.BackgroundTransparency = 1
+farmPage.ZIndex = 1000000
+farmPage.Parent = frame
+
+local speedSection = Instance.new("TextLabel")
+speedSection.Size = UDim2.new(1, 0, 0, 14)
+speedSection.Position = UDim2.new(0, 0, 0, 0)
+speedSection.BackgroundTransparency = 1
+speedSection.Text = "— Speed —"
+speedSection.TextColor3 = Color3.fromRGB(120, 120, 140)
+speedSection.Font = Enum.Font.Gotham
+speedSection.TextSize = 10
+speedSection.ZIndex = 1000000
+speedSection.Parent = farmPage
+
+local speedBtn = Instance.new("TextButton")
+speedBtn.Size = UDim2.new(1, -30, 0, 26)
+speedBtn.Position = UDim2.new(0, 0, 0, 16)
+speedBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+speedBtn.Text = "SPEED: LIGAR"
+speedBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+speedBtn.Font = Enum.Font.GothamBold
+speedBtn.TextSize = 11
+speedBtn.ZIndex = 1000000
+speedBtn.Parent = farmPage
+
+local speedBtnCorner = Instance.new("UICorner")
+speedBtnCorner.Parent = speedBtn
+
+local arrowBtn = Instance.new("TextButton")
+arrowBtn.Size = UDim2.new(0, 26, 0, 26)
+arrowBtn.Position = UDim2.new(1, -26, 0, 16)
+arrowBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+arrowBtn.Text = "v"
+arrowBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+arrowBtn.Font = Enum.Font.GothamBold
+arrowBtn.TextSize = 12
+arrowBtn.ZIndex = 1000000
+arrowBtn.Parent = farmPage
+
+local arrowBtnCorner = Instance.new("UICorner")
+arrowBtnCorner.Parent = arrowBtn
+
+local speedDrop = Instance.new("Frame")
+speedDrop.Size = UDim2.new(1, 0, 0, 55)
+speedDrop.Position = UDim2.new(0, 0, 0, 44)
+speedDrop.BackgroundTransparency = 1
+speedDrop.Visible = false
+speedDrop.ZIndex = 1000000
+speedDrop.Parent = farmPage
+
+local btnX1 = Instance.new("TextButton")
+btnX1.Size = UDim2.new(1, 0, 0, 24)
+btnX1.Position = UDim2.new(0, 0, 0, 2)
+btnX1.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+btnX1.Text = "x1 Speed"
+btnX1.TextColor3 = Color3.fromRGB(90, 255, 120)
+btnX1.Font = Enum.Font.GothamBold
+btnX1.TextSize = 10
+btnX1.ZIndex = 1000000
+btnX1.Parent = speedDrop
+
+local btnX1Corner = Instance.new("UICorner")
+btnX1Corner.Parent = btnX1
+
+local btnX15 = Instance.new("TextButton")
+btnX15.Size = UDim2.new(1, 0, 0, 24)
+btnX15.Position = UDim2.new(0, 0, 0, 28)
+btnX15.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+btnX15.Text = "x1.5 Speed"
+btnX15.TextColor3 = Color3.fromRGB(200, 200, 220)
+btnX15.Font = Enum.Font.GothamBold
+btnX15.TextSize = 10
+btnX15.ZIndex = 1000000
+btnX15.Parent = speedDrop
+
+local btnX15Corner = Instance.new("UICorner")
+btnX15Corner.Parent = btnX15
+
+local trophyBtn = Instance.new("TextButton")
+trophyBtn.Size = UDim2.new(1, 0, 0, 26)
+trophyBtn.Position = UDim2.new(0, 0, 0, 52)
+trophyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+trophyBtn.Text = "AUTO TROFÉU: LIGAR"
+trophyBtn.TextColor3 = Color3.fromRGB(200, 200, 220)
+trophyBtn.Font = Enum.Font.GothamBold
+trophyBtn.TextSize = 11
+trophyBtn.ZIndex = 1000000
+trophyBtn.Parent = farmPage
+
+local trophyBtnCorner = Instance.new("UICorner")
+trophyBtnCorner.Parent = trophyBtn
+
+local speedActive, currentMode, dropOpen = false, "x1", false
+local posX1 = Vector3.new(-440.70849609375, 25.290483474731445, -1000.4068603515625)
+local posX15 = Vector3.new(-452.7085266113281, 25.290483474731445, -999.40673828125)
+local speedConn = nil
+
+local function speedLoop()
+    if speedConn then speedConn:Disconnect(); speedConn = nil end
+    if not speedActive then return end
+    
+    speedConn = RunService.Heartbeat:Connect(function()
+        local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if root then 
+            local targetPos = (currentMode == "x1" and posX1 or posX15)
+            root.CFrame = CFrame.new(targetPos) 
+        end
+    end)
+end
+
+arrowBtn.MouseButton1Click:Connect(function()
+    dropOpen = not dropOpen
+    arrowBtn.Text = dropOpen and "^" or "v"
+    speedDrop.Visible = dropOpen
+    trophyBtn.Position = UDim2.new(0, 0, 0, dropOpen and 105 or 52)
+    frame.Size = UDim2.new(0, 200, 0, dropOpen and 215 or 160)
+end)
+
+speedBtn.MouseButton1Click:Connect(function()
+    speedActive = not speedActive
+    speedBtn.Text = speedActive and "SPEED: DESLIGAR" or "SPEED: LIGAR"
+    speedBtn.BackgroundColor3 = speedActive and Color3.fromRGB(180, 40, 40) or Color3.fromRGB(40, 40, 55)
+    speedLoop()
+end)
+
+btnX1.MouseButton1Click:Connect(function() currentMode = "x1"; btnX1.TextColor3 = Color3.fromRGB(90, 255, 120); btnX15.TextColor3 = Color3.fromRGB(200, 200, 220); speedLoop() end)
+btnX15.MouseButton1Click:Connect(function() currentMode = "x1.5"; btnX15.TextColor3 = Color3.fromRGB(90, 255, 120); btnX1.TextColor3 = Color3.fromRGB(200, 200, 220); speedLoop() end)
+
+local trophyActive = false
+local trophyConn = nil
+
+local function getTargetBlock()
+    local world2 = workspace:FindFirstChild("World2")
+    local stage7 = world2 and world2:FindFirstChild("Stage7")
+    local normalWin = stage7 and stage7:FindFirstChild("NormalWin")
+    return normalWin and normalWin:FindFirstChild("Button")
+end
+
+local function activateTrophy()
+    local block = getTargetBlock()
+    if not block then return end
+    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    pcall(function()
+        for _, child in ipairs(block:GetDescendants()) do
+            if child:IsA("TouchTransmitter") then
+                firetouchinterest(child.Parent, root, 0)
+                firetouchinterest(child.Parent, root, 1)
+            elseif child:IsA("ClickDetector") then
+                fireclickdetector(child, 0)
+            elseif child:IsA("ProximityPrompt") and child.Enabled then
+                child:InputHoldBegin()
+                child:InputHoldEnd()
+            end
+        end
+        if block:IsA("BasePart") and block.CanCollide then
+            firetouchinterest(block, root, 0)
+            firetouchinterest(block, root, 1)
+        end
+    end)
+end
+
+local function trophyLoop()
+    if trophyConn then trophyConn:Disconnect(); trophyConn = nil end
+    if not trophyActive then return end
+    
+    trophyConn = RunService.Heartbeat:Connect(function()
+        for i = 1, 10 do 
+            activateTrophy()
+        end
+    end)
+end
+
+trophyBtn.MouseButton1Click:Connect(function()
+    trophyActive = not trophyActive
+    if trophyActive then
+        trophyBtn.Text = "AUTO TROFÉU: DESLIGAR"
+        trophyBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+    else
+        trophyBtn.Text = "AUTO TROFÉU: LIGAR"
+        trophyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+    end
+    trophyLoop()
+end)
+
+local function makeDraggable(instance)
+    local dragging, dragStart, startPos
+    instance.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = instance.Position
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            instance.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            if instance == toggleBtn then dragTime = tick() end
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+makeDraggable(frame)
+makeDraggable(toggleBtn)
