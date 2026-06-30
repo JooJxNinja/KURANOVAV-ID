@@ -1,46 +1,49 @@
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
+-- Tabela com os IDs das suas animações
 local customAnimations = {
-	idle = {
-		"rbxassetid://14618196485",
-		"rbxassetid://88464649697812"
-	},
-	walk = { "rbxassetid://98713727778027" },
-	run = { "rbxassetid://133955346539948" },
-	jump = { "rbxassetid://124147147418885" },
-	fall = { "rbxassetid://128620818122982" },
-	climb = { "rbxassetid://95542189442725" },
-	swim = { "rbxassetid://98638030176770" },
-	swimidle = { "rbxassetid://134165122649587" }
+idle = { "rbxassetid://88464649697812" },
+walk = { "rbxassetid://98713727778027" },
+run = { "rbxassetid://133955346539948" },
+jump = { "rbxassetid://124147147418885" },
+fall = { "rbxassetid://128620818122982" },
+climb = { "rbxassetid://95542189442725" },
+swim = { "rbxassetid://98638030176770" },
+swimidle = { "rbxassetid://134165122649587" }
 }
 
 local function applyAnimations(character)
-	local animateScript = character:WaitForChild("Animate", 5)
+-- Espera o script padrão de animação carregar no personagem
+local animateScript = character:WaitForChild("Animate", 5)
 
-	if animateScript then
-		for animName, animIds in pairs(customAnimations) do
-			local animValue = animateScript:FindFirstChild(animName)
-			if animValue then
-				for _, child in ipairs(animValue:GetChildren()) do
-					if child:IsA("Animation") then
-						child:Destroy()
-					end
-				end
-
-				for i, id in ipairs(animIds) do
-					local newAnim = Instance.new("Animation")
-					newAnim.Name = "Animation" .. i
-					newAnim.AnimationId = id
-					newAnim.Parent = animValue
-				end
-			end
-		end
-	end
+if animateScript then  
+	for animName, animIds in pairs(customAnimations) do  
+		local animValue = animateScript:FindFirstChild(animName)  
+		if animValue then  
+			-- Limpa as animações antigas de dentro do valor  
+			for _, child in ipairs(animValue:GetChildren()) do  
+				if child:IsA("Animation") then  
+					child:Destroy()  
+				end  
+			end  
+			  
+			-- Adiciona os novos IDs  
+			for i, id in ipairs(animIds) do  
+				local newAnim = Instance.new("Animation")  
+				newAnim.Name = animName .. i  
+				newAnim.AnimationId = id  
+				newAnim.Parent = animValue  
+			end  
+		end  
+	end  
 end
 
+end
+
+-- Aplica quando o personagem nasce
 player.CharacterAdded:Connect(applyAnimations)
 
+-- Aplica caso o personagem já tenha carregado antes do script rodar
 if player.Character then
-	applyAnimations(player.Character)
-end
+applyAnimations(player.Character)
