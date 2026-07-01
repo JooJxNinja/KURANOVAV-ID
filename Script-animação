@@ -1,9 +1,8 @@
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
--- Tabela com os IDs das suas animações
 local customAnimations = {
-	idle = { "rbxassetid://88464649697812" },
+	idle = { "rbxassetid://88464649697812", "rbxassetid://120712697072374" },
 	walk = { "rbxassetid://98713727778027" },
 	run = { "rbxassetid://133955346539948" },
 	jump = { "rbxassetid://124147147418885" },
@@ -14,36 +13,38 @@ local customAnimations = {
 }
 
 local function applyAnimations(character)
-	-- Espera o script padrão de animação carregar no personagem
 	local animateScript = character:WaitForChild("Animate", 5)
 	
 	if animateScript then
 		for animName, animIds in pairs(customAnimations) do
 			local animValue = animateScript:FindFirstChild(animName)
 			if animValue then
-				-- Limpa as animações antigas de dentro do valor
 				for _, child in ipairs(animValue:GetChildren()) do
 					if child:IsA("Animation") then
 						child:Destroy()
 					end
 				end
 				
-				-- Adiciona os novos IDs
 				for i, id in ipairs(animIds) do
 					local newAnim = Instance.new("Animation")
-					newAnim.Name = animName .. i
+					newAnim.Name = "Animation" .. i
 					newAnim.AnimationId = id
 					newAnim.Parent = animValue
+					
+					if animName == "idle" then
+						local weightValue = Instance.new("NumberValue")
+						weightValue.Name = "Weight"
+						weightValue.Value = (i == 1) and 9 or 1
+						weightValue.Parent = newAnim
+					end
 				end
 			end
 		end
 	end
 end
 
--- Aplica quando o personagem nasce
 player.CharacterAdded:Connect(applyAnimations)
 
--- Aplica caso o personagem já tenha carregado antes do script rodar
 if player.Character then
 	applyAnimations(player.Character)
 end
