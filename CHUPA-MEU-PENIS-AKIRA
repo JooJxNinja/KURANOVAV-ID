@@ -1,0 +1,1068 @@
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local SoundService = game:GetService("SoundService")
+
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local FILE_NAME = "Boombox_Config_Data.json"
+
+local saveData = {
+	Favorites = {},
+	Volume = 5,
+	Speed = 1
+}
+
+local function loadSettings()
+	if isfile and readfile and isfile(FILE_NAME) then
+		pcall(function()
+			local decoded = HttpService:JSONDecode(readfile(FILE_NAME))
+			if type(decoded) == "table" then
+				for k, v in pairs(decoded) do saveData[k] = v end
+			end
+		end)
+	end
+end
+
+local function saveSettings()
+	if writefile then
+		pcall(function() writefile(FILE_NAME, HttpService:JSONEncode(saveData)) end)
+	end
+end
+
+loadSettings()
+
+local LocalSound = SoundService:FindFirstChild("BoomboxGlobalSound")
+if not LocalSound then
+	LocalSound = Instance.new("Sound")
+	LocalSound.Name = "BoomboxGlobalSound"
+	LocalSound.Looped = false
+	LocalSound.Volume = saveData.Volume / 10
+	LocalSound.Parent = SoundService
+end
+
+local mutedPlayers = {}
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CustomBoomboxUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = 999999
+
+pcall(function() ScreenGui.Parent = CoreGui end)
+if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+local MainButton = Instance.new("TextButton")
+MainButton.Name = "MainButton"
+MainButton.Size = UDim2.new(0, 55, 0, 55)
+MainButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+MainButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainButton.Text = "🎵" 
+MainButton.TextSize = 22
+MainButton.Parent = ScreenGui
+Instance.new("UICorner", MainButton).CornerRadius = UDim.new(1, 0)
+
+local MainButtonStroke = Instance.new("UIStroke")
+MainButtonStroke.Thickness = 3
+MainButtonStroke.Color = Color3.fromRGB(255, 45, 85)
+MainButtonStroke.Parent = MainButton
+
+local TARGET_SIZE = UDim2.new(0, 530, 0, 340)
+local UI_OPEN = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 0, 0, 0)
+MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
+MainFrame.Visible = false
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Thickness = 3
+FrameStroke.Color = Color3.fromRGB(255, 45, 85)
+FrameStroke.Parent = MainFrame
+
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(1, -20, 1, -65)
+Container.Position = UDim2.new(0, 10, 0, 10)
+Container.BackgroundTransparency = 1
+Container.Parent = MainFrame
+
+local BottomNav = Instance.new("Frame")
+BottomNav.Size = UDim2.new(1, -20, 0, 40)
+BottomNav.Position = UDim2.new(0, 10, 1, -45)
+BottomNav.BackgroundTransparency = 1
+BottomNav.Parent = MainFrame
+
+local ArrowLeft = Instance.new("TextButton")
+ArrowLeft.Size = UDim2.new(0, 45, 1, 0)
+ArrowLeft.BackgroundColor3 = Color3.fromRGB(35, 35, 42)
+ArrowLeft.Text = "<"
+ArrowLeft.Font = Enum.Font.GothamBold
+ArrowLeft.TextSize = 18
+ArrowLeft.TextColor3 = Color3.fromRGB(255, 255, 255)
+ArrowLeft.Parent = BottomNav
+Instance.new("UICorner", ArrowLeft).CornerRadius = UDim.new(0, 6)
+
+local PageIndicator = Instance.new("TextLabel")
+PageIndicator.Size = UDim2.new(1, -100, 1, 0)
+PageIndicator.Position = UDim2.new(0, 50, 0, 0)
+PageIndicator.BackgroundTransparency = 1
+PageIndicator.Font = Enum.Font.GothamBold
+PageIndicator.TextSize = 12
+PageIndicator.TextColor3 = Color3.fromRGB(200, 200, 210)
+PageIndicator.Parent = BottomNav
+
+local ArrowRight = Instance.new("TextButton")
+ArrowRight.Size = UDim2.new(0, 45, 1, 0)
+ArrowRight.Position = UDim2.new(1, -45, 0, 0)
+ArrowRight.BackgroundColor3 = Color3.fromRGB(255, 45, 85)
+ArrowRight.Text = ">"
+ArrowRight.Font = Enum.Font.GothamBold
+ArrowRight.TextSize = 18
+ArrowRight.TextColor3 = Color3.fromRGB(255, 255, 255)
+ArrowRight.Parent = BottomNav
+Instance.new("UICorner", ArrowRight).CornerRadius = UDim.new(0, 6)
+
+local currentPage = 1
+local tabScrolls = {}
+local pageNames = {
+	"Player Principal",
+	"Músicas Salvas",
+	"Mutar Players",
+	"Copiar ID por Clique",
+	"Pesquisa da Web 🌐"
+}
+
+local function CreatePageTab(index)
+	local ScrollFrame = Instance.new("ScrollingFrame")
+	ScrollFrame.Size = UDim2.new(1, 0, 1, 0)
+	ScrollFrame.BackgroundTransparency = 1
+	ScrollFrame.Visible = false
+	ScrollFrame.ScrollBarThickness = 4
+	ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(255, 45, 85)
+	ScrollFrame.Parent = Container
+
+	local ContentLayout = Instance.new("UIListLayout")
+	ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	ContentLayout.Padding = UDim.new(0, 8)
+	ContentLayout.Parent = ScrollFrame
+	
+	ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, ContentLayout.AbsoluteContentSize.Y + 10)
+	end)
+
+	tabScrolls[index] = ScrollFrame
+	return ScrollFrame
+end
+
+local MainScroll = CreatePageTab(1)
+local FavScroll = CreatePageTab(2)
+local MuteScroll = CreatePageTab(3)
+local CopierScroll = CreatePageTab(4)
+local WebSearchScroll = CreatePageTab(5)
+
+local function UpdatePageVisibility()
+	for i = 1, #tabScrolls do tabScrolls[i].Visible = (i == currentPage) end
+	PageIndicator.Text = pageNames[currentPage] .. " (" .. currentPage .. "/5)"
+	ArrowLeft.BackgroundColor3 = (currentPage == 1) and Color3.fromRGB(35, 35, 42) or Color3.fromRGB(255, 45, 85)
+	ArrowRight.BackgroundColor3 = (currentPage == 5) and Color3.fromRGB(35, 35, 42) or Color3.fromRGB(255, 45, 85)
+end
+
+ArrowLeft.MouseButton1Click:Connect(function()
+	if currentPage > 1 then currentPage = currentPage - 1 UpdatePageVisibility() end
+end)
+
+ArrowRight.MouseButton1Click:Connect(function()
+	if currentPage < 5 then currentPage = currentPage + 1 UpdatePageVisibility() end
+end)
+
+UpdatePageVisibility()
+
+local function MakeDraggable(gui)
+	local dragging, dragInput, dragStart, startPos
+	gui.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true dragStart = input.Position startPos = gui.Position
+		end
+	end)
+	gui.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+	end)
+end
+MakeDraggable(MainButton)
+MakeDraggable(MainFrame)
+
+local currentAudioId = ""
+local currentAudioName = "Nenhum Áudio"
+local currentAudioCreator = "Desconhecido"
+
+local PlayerWindow = Instance.new("Frame")
+PlayerWindow.Size = UDim2.new(1, 0, 0, 140)
+PlayerWindow.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+PlayerWindow.Parent = MainScroll
+Instance.new("UICorner", PlayerWindow).CornerRadius = UDim.new(0, 8)
+
+local CreatorAvatar = Instance.new("ImageLabel")
+CreatorAvatar.Size = UDim2.new(0, 45, 0, 45)
+CreatorAvatar.Position = UDim2.new(0, 10, 0, 10)
+CreatorAvatar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+CreatorAvatar.Image = "rbxassetid://0"
+CreatorAvatar.Parent = PlayerWindow
+Instance.new("UICorner", CreatorAvatar).CornerRadius = UDim.new(0, 8)
+
+local AudioTitle = Instance.new("TextLabel")
+AudioTitle.Size = UDim2.new(1, -100, 0, 22)
+AudioTitle.Position = UDim2.new(0, 62, 0, 10)
+AudioTitle.BackgroundTransparency = 1
+AudioTitle.Font = Enum.Font.GothamBold
+AudioTitle.TextSize = 13
+AudioTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+AudioTitle.TextXAlignment = Enum.TextXAlignment.Left
+AudioTitle.TextTruncate = Enum.TextTruncate.AtEnd
+AudioTitle.Text = "Nenhum Áudio Tocando"
+AudioTitle.Parent = PlayerWindow
+
+local AudioAuthor = Instance.new("TextLabel")
+AudioAuthor.Size = UDim2.new(1, -100, 0, 18)
+AudioAuthor.Position = UDim2.new(0, 62, 0, 32)
+AudioAuthor.BackgroundTransparency = 1
+AudioAuthor.Font = Enum.Font.Gotham
+AudioAuthor.TextSize = 11
+AudioAuthor.TextColor3 = Color3.fromRGB(160, 160, 175)
+AudioAuthor.TextXAlignment = Enum.TextXAlignment.Left
+AudioAuthor.Text = "Por: ---"
+AudioAuthor.Parent = PlayerWindow
+
+local FavStarButton = Instance.new("TextButton")
+FavStarButton.Size = UDim2.new(0, 30, 0, 30)
+FavStarButton.Position = UDim2.new(1, -38, 0, 10)
+FavStarButton.BackgroundTransparency = 1
+FavStarButton.Font = Enum.Font.GothamBold
+FavStarButton.TextSize = 22
+FavStarButton.TextColor3 = Color3.fromRGB(120, 120, 120)
+FavStarButton.Text = "★"
+FavStarButton.Parent = PlayerWindow
+
+local VisualizerContainer = Instance.new("Frame")
+VisualizerContainer.Size = UDim2.new(1, -20, 0, 45)
+VisualizerContainer.Position = UDim2.new(0, 10, 0, 60)
+VisualizerContainer.BackgroundTransparency = 1
+VisualizerContainer.Parent = PlayerWindow
+
+local visBars = {}
+local visGradients = {}
+local totalBars = 36
+for i = 1, totalBars do
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1/totalBars, -2, 0, 4)
+	bar.Position = UDim2.new((i-1)/totalBars, 0, 1, -4)
+	bar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	bar.BorderSizePixel = 0
+	bar.Parent = VisualizerContainer
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 2)
+
+	local grad = Instance.new("UIGradient")
+	grad.Rotation = 90
+	grad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 45, 85)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 140, 0)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 215, 0))
+	})
+	grad.Parent = bar
+
+	table.insert(visBars, bar)
+	table.insert(visGradients, grad)
+end
+
+local TimelineBar = Instance.new("Frame")
+TimelineBar.Size = UDim2.new(1, -120, 0, 4)
+TimelineBar.Position = UDim2.new(0, 10, 0, 118)
+TimelineBar.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+TimelineBar.BorderSizePixel = 0
+TimelineBar.Parent = PlayerWindow
+
+local ProgressDot = Instance.new("Frame")
+ProgressDot.Size = UDim2.new(0, 10, 0, 10)
+ProgressDot.Position = UDim2.new(0, -5, 0.5, -5)
+ProgressDot.BackgroundColor3 = Color3.fromRGB(255, 45, 85)
+ProgressDot.BorderSizePixel = 0
+ProgressDot.Parent = TimelineBar
+Instance.new("UICorner", ProgressDot).CornerRadius = UDim.new(1, 0)
+
+local TimeLabel = Instance.new("TextLabel")
+TimeLabel.Size = UDim2.new(0, 100, 0, 20)
+TimeLabel.Position = UDim2.new(1, -105, 0, 110)
+TimeLabel.BackgroundTransparency = 1
+TimeLabel.Font = Enum.Font.SourceSans
+TimeLabel.TextSize = 13
+TimeLabel.TextColor3 = Color3.fromRGB(170, 170, 180)
+TimeLabel.TextXAlignment = Enum.TextXAlignment.Right
+TimeLabel.Text = "00:00 / 00:00"
+TimeLabel.Parent = PlayerWindow
+
+local InputRow = Instance.new("Frame")
+InputRow.Size = UDim2.new(1, 0, 0, 40)
+InputRow.BackgroundTransparency = 1
+InputRow.Parent = MainScroll
+
+local IdInput = Instance.new("TextBox")
+IdInput.Size = UDim2.new(1, -180, 1, 0)
+IdInput.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+IdInput.Font = Enum.Font.Gotham
+IdInput.TextSize = 13
+IdInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+IdInput.PlaceholderText = "Cole o ID do Áudio..."
+IdInput.Text = ""
+IdInput.Parent = InputRow
+Instance.new("UICorner", IdInput).CornerRadius = UDim.new(0, 6)
+
+local PlayInputBtn = Instance.new("TextButton")
+PlayInputBtn.Size = UDim2.new(0, 90, 1, 0)
+PlayInputBtn.Position = UDim2.new(1, -170, 0, 0)
+PlayInputBtn.BackgroundColor3 = Color3.fromRGB(255, 45, 85)
+PlayInputBtn.Font = Enum.Font.GothamBold
+PlayInputBtn.TextSize = 13
+PlayInputBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+PlayInputBtn.Text = "Tocar"
+PlayInputBtn.Parent = InputRow
+Instance.new("UICorner", PlayInputBtn).CornerRadius = UDim.new(0, 6)
+
+local LoopBtn = Instance.new("TextButton")
+LoopBtn.Size = UDim2.new(0, 75, 1, 0)
+LoopBtn.Position = UDim2.new(1, -75, 0, 0)
+LoopBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+LoopBtn.Font = Enum.Font.GothamBold
+LoopBtn.TextSize = 12
+LoopBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoopBtn.Text = "Loop: OFF"
+LoopBtn.Parent = InputRow
+Instance.new("UICorner", LoopBtn).CornerRadius = UDim.new(0, 6)
+
+local ControlsRow = Instance.new("Frame")
+ControlsRow.Size = UDim2.new(1, 0, 0, 45)
+ControlsRow.BackgroundTransparency = 1
+ControlsRow.Parent = MainScroll
+
+local SpeedBtn = Instance.new("TextButton")
+SpeedBtn.Size = UDim2.new(0, 130, 0, 38)
+SpeedBtn.Position = UDim2.new(0, 0, 0, 3)
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+SpeedBtn.Font = Enum.Font.GothamBold
+SpeedBtn.TextSize = 12
+SpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedBtn.Text = "Velocidade: 1x"
+SpeedBtn.Parent = ControlsRow
+Instance.new("UICorner", SpeedBtn).CornerRadius = UDim.new(0, 6)
+
+local SliderLabel = Instance.new("TextLabel")
+SliderLabel.Size = UDim2.new(0, 80, 0, 38)
+SliderLabel.Position = UDim2.new(0, 140, 0, 3)
+SliderLabel.BackgroundTransparency = 1
+SliderLabel.Font = Enum.Font.GothamBold
+SliderLabel.TextSize = 12
+SliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+SliderLabel.Text = string.format("Vol: [%02d/10]", saveData.Volume)
+SliderLabel.Parent = ControlsRow
+
+local SliderBg = Instance.new("TextButton")
+SliderBg.Size = UDim2.new(1, -225, 0, 6)
+SliderBg.Position = UDim2.new(0, 225, 0, 19)
+SliderBg.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+SliderBg.Text = ""
+SliderBg.AutoButtonColor = false
+SliderBg.Parent = ControlsRow
+Instance.new("UICorner", SliderBg).CornerRadius = UDim.new(1, 0)
+
+local SliderFill = Instance.new("Frame")
+SliderFill.Size = UDim2.new(saveData.Volume / 10, 0, 1, 0)
+SliderFill.BackgroundColor3 = Color3.fromRGB(255, 45, 85)
+SliderFill.BorderSizePixel = 0
+SliderFill.Parent = SliderBg
+
+local SliderBtn = Instance.new("Frame")
+SliderBtn.Size = UDim2.new(0, 14, 0, 14)
+SliderBtn.Position = UDim2.new(saveData.Volume / 10, -7, 0.5, -7)
+SliderBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SliderBtn.BorderSizePixel = 0
+SliderBtn.Parent = SliderBg
+Instance.new("UICorner", SliderBtn).CornerRadius = UDim.new(1, 0)
+
+local updateFavList
+
+local function updateStarVisual()
+	local isFav = false
+	for _, item in ipairs(saveData.Favorites) do
+		if item.id == currentAudioId and item.active then
+			isFav = true
+			break
+		end
+	end
+	FavStarButton.TextColor3 = (currentAudioId ~= "" and isFav) and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(120, 120, 120)
+end
+
+local function playAudio(rawId)
+	local cleanId = tostring(rawId):match("%d+")
+	if not cleanId then
+		AudioTitle.Text = "❌ Digite um ID numérico!"
+		return
+	end
+
+	currentAudioId = cleanId
+	AudioTitle.Text = "Tocando ID: " .. cleanId
+	AudioAuthor.Text = "Por: Buscando..."
+	CreatorAvatar.Image = "rbxassetid://0"
+
+	LocalSound:Stop()
+	LocalSound.SoundId = "rbxassetid://" .. cleanId
+	LocalSound.Volume = saveData.Volume / 10
+	LocalSound.PlaybackSpeed = saveData.Speed or 1
+	LocalSound.TimePosition = 0
+
+	LocalSound:Play()
+	PlayInputBtn.Text = "Parar"
+	PlayInputBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+
+	task.spawn(function()
+		local success, assetInfo = pcall(function()
+			return MarketplaceService:GetProductInfo(tonumber(cleanId), Enum.InfoType.Asset)
+		end)
+		
+		if success and assetInfo then
+			currentAudioName = assetInfo.Name or ("Áudio " .. cleanId)
+			AudioTitle.Text = currentAudioName
+			
+			local creatorData = assetInfo.Creator
+			if creatorData then
+				currentAudioCreator = creatorData.Name or "Roblox"
+				AudioAuthor.Text = "Por: " .. currentAudioCreator
+				
+				local targetId = creatorData.CreatorTargetId or creatorData.TargetId or creatorData.Id
+				local creatorType = creatorData.CreatorType
+				
+				if targetId and targetId > 0 then
+					if creatorType == "User" then
+						CreatorAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(targetId) .. "&w=420&h=420"
+					elseif creatorType == "Group" then
+						CreatorAvatar.Image = "rbxthumb://type=GroupIcon&id=" .. tostring(targetId) .. "&w=420&h=420"
+					else
+						CreatorAvatar.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(targetId) .. "&w=420&h=420"
+					end
+				end
+			else
+				AudioAuthor.Text = "Por: Roblox"
+			end
+		else
+			AudioTitle.Text = "Áudio " .. cleanId
+			AudioAuthor.Text = "Por: Desconhecido"
+		end
+		updateStarVisual()
+	end)
+end
+
+FavStarButton.MouseButton1Click:Connect(function()
+	if currentAudioId == "" then return end
+	local foundIndex = nil
+	for i, item in ipairs(saveData.Favorites) do
+		if item.id == currentAudioId then
+			foundIndex = i break
+		end
+	end
+	if foundIndex then
+		saveData.Favorites[foundIndex].active = not saveData.Favorites[foundIndex].active
+	else
+		table.insert(saveData.Favorites, {
+			id = currentAudioId, 
+			name = currentAudioName, 
+			author = currentAudioCreator, 
+			active = true
+		})
+	end
+	saveSettings()
+	updateStarVisual()
+	if updateFavList then updateFavList() end
+end)
+
+PlayInputBtn.MouseButton1Click:Connect(function()
+	if LocalSound.IsPlaying then
+		LocalSound:Stop()
+		PlayInputBtn.Text = "Tocar"
+		PlayInputBtn.BackgroundColor3 = Color3.fromRGB(255, 45, 85)
+		AudioTitle.Text = "Música Parada"
+	else
+		if IdInput.Text ~= "" then playAudio(IdInput.Text) end
+	end
+end)
+
+LoopBtn.MouseButton1Click:Connect(function()
+	LocalSound.Looped = not LocalSound.Looped
+	LoopBtn.BackgroundColor3 = LocalSound.Looped and Color3.fromRGB(40, 180, 80) or Color3.fromRGB(50, 50, 60)
+	LoopBtn.Text = LocalSound.Looped and "Loop: ON" or "Loop: OFF"
+end)
+
+local speedStates = {1, 1.25, 1.5, 2}
+SpeedBtn.MouseButton1Click:Connect(function()
+	local currentIdx = table.find(speedStates, saveData.Speed or 1) or 1
+	local nextIdx = (currentIdx % #speedStates) + 1
+	saveData.Speed = speedStates[nextIdx]
+	LocalSound.PlaybackSpeed = saveData.Speed
+	SpeedBtn.Text = "Velocidade: " .. saveData.Speed .. "x"
+	saveSettings()
+end)
+
+local sliderActive = false
+local function updateSlider(input)
+	local ratio = math.clamp((input.Position.X - SliderBg.AbsolutePosition.X) / SliderBg.AbsoluteSize.X, 0, 1)
+	local volValue = math.round(ratio * 10)
+	saveData.Volume = volValue
+	SliderFill.Size = UDim2.new(volValue / 10, 0, 1, 0)
+	SliderBtn.Position = UDim2.new(volValue / 10, -7, 0.5, -7)
+	SliderLabel.Text = string.format("Vol: [%02d/10]", volValue)
+	LocalSound.Volume = volValue / 10
+	saveSettings()
+end
+
+SliderBg.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		sliderActive = true updateSlider(input)
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if sliderActive and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		updateSlider(input)
+	end
+end)
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		sliderActive = false
+	end
+end)
+
+local SearchBox = Instance.new("TextBox")
+SearchBox.Size = UDim2.new(1, 0, 0, 35)
+SearchBox.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+SearchBox.Font = Enum.Font.Gotham
+SearchBox.TextSize = 13
+SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SearchBox.PlaceholderText = "🔍 Pesquisar nas Músicas Salvas..."
+SearchBox.Text = ""
+SearchBox.Parent = FavScroll
+Instance.new("UICorner", SearchBox).CornerRadius = UDim.new(0, 6)
+
+local FavContainer = Instance.new("Frame")
+FavContainer.Size = UDim2.new(1, 0, 0, 0)
+FavContainer.BackgroundTransparency = 1
+FavContainer.Parent = FavScroll
+
+local FavLayout = Instance.new("UIListLayout")
+FavLayout.SortOrder = Enum.SortOrder.LayoutOrder
+FavLayout.Padding = UDim.new(0, 6)
+FavLayout.Parent = FavContainer
+
+FavLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	FavContainer.Size = UDim2.new(1, 0, 0, FavLayout.AbsoluteContentSize.Y)
+end)
+
+updateFavList = function()
+	for _, child in pairs(FavContainer:GetChildren()) do
+		if child:IsA("Frame") then child:Destroy() end
+	end
+	
+	local filter = SearchBox.Text:lower()
+	for _, item in ipairs(saveData.Favorites) do
+		if not item.active then continue end
+		if filter ~= "" and not item.name:lower():find(filter) and not (item.author or ""):lower():find(filter) then
+			continue
+		end
+
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 45)
+		row.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+		row.Parent = FavContainer
+		Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+		local NameLabel = Instance.new("TextLabel")
+		NameLabel.Size = UDim2.new(1, -145, 1, 0)
+		NameLabel.Position = UDim2.new(0, 10, 0, 0)
+		NameLabel.BackgroundTransparency = 1
+		NameLabel.Font = Enum.Font.GothamBold
+		NameLabel.TextSize = 12
+		NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+		NameLabel.TextTruncate = Enum.TextTruncate.AtEnd
+		NameLabel.Text = item.name .. " (" .. (item.author or "Roblox") .. ")"
+		NameLabel.Parent = row
+
+		local PlayBtn = Instance.new("TextButton")
+		PlayBtn.Size = UDim2.new(0, 50, 0, 28)
+		PlayBtn.Position = UDim2.new(1, -135, 0.5, -14)
+		PlayBtn.BackgroundColor3 = Color3.fromRGB(255, 45, 85)
+		PlayBtn.Font = Enum.Font.GothamBold
+		PlayBtn.TextSize = 12
+		PlayBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		PlayBtn.Text = "Tocar"
+		PlayBtn.Parent = row
+		Instance.new("UICorner", PlayBtn).CornerRadius = UDim.new(0, 4)
+
+		PlayBtn.MouseButton1Click:Connect(function()
+			currentPage = 1
+			UpdatePageVisibility()
+			playAudio(item.id)
+		end)
+
+		local DeleteBtn = Instance.new("TextButton")
+		DeleteBtn.Size = UDim2.new(0, 75, 0, 28)
+		DeleteBtn.Position = UDim2.new(1, -80, 0.5, -14)
+		DeleteBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+		DeleteBtn.Font = Enum.Font.GothamBold
+		DeleteBtn.TextSize = 11
+		DeleteBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
+		DeleteBtn.Text = "Remover"
+		DeleteBtn.Parent = row
+		Instance.new("UICorner", DeleteBtn).CornerRadius = UDim.new(0, 4)
+
+		DeleteBtn.MouseButton1Click:Connect(function()
+			item.active = false
+			saveSettings()
+			updateStarVisual()
+			updateFavList()
+		end)
+	end
+end
+
+SearchBox:GetPropertyChangedSignal("Text"):Connect(updateFavList)
+updateFavList()
+
+local function updateMuteList()
+	for _, child in pairs(MuteScroll:GetChildren()) do
+		if child:IsA("Frame") then child:Destroy() end
+	end
+
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr == LocalPlayer then continue end
+
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(1, 0, 0, 48)
+		row.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+		row.Parent = MuteScroll
+		Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+
+		local AvatarImg = Instance.new("ImageLabel")
+		AvatarImg.Size = UDim2.new(0, 36, 0, 36)
+		AvatarImg.Position = UDim2.new(0, 6, 0.5, -18)
+		AvatarImg.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+		AvatarImg.Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(plr.UserId) .. "&w=150&h=150"
+		AvatarImg.Parent = row
+		Instance.new("UICorner", AvatarImg).CornerRadius = UDim.new(0, 18)
+
+		local NameLbl = Instance.new("TextLabel")
+		NameLbl.Size = UDim2.new(1, -150, 1, 0)
+		NameLbl.Position = UDim2.new(0, 48, 0, 0)
+		NameLbl.BackgroundTransparency = 1
+		NameLbl.Font = Enum.Font.GothamBold
+		NameLbl.TextSize = 12
+		NameLbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+		NameLbl.TextXAlignment = Enum.TextXAlignment.Left
+		NameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+		NameLbl.Text = plr.DisplayName .. " (@" .. plr.Name .. ")"
+		NameLbl.Parent = row
+
+		local MuteBtn = Instance.new("TextButton")
+		MuteBtn.Size = UDim2.new(0, 85, 0, 30)
+		MuteBtn.Position = UDim2.new(1, -92, 0.5, -15)
+		local isMuted = mutedPlayers[plr.UserId] or false
+		MuteBtn.BackgroundColor3 = isMuted and Color3.fromRGB(180, 40, 40) or Color3.fromRGB(50, 50, 60)
+		MuteBtn.Font = Enum.Font.GothamBold
+		MuteBtn.TextSize = 11
+		MuteBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		MuteBtn.Text = isMuted and "MUTADO" or "MUTAR"
+		MuteBtn.Parent = row
+		Instance.new("UICorner", MuteBtn).CornerRadius = UDim.new(0, 6)
+
+		MuteBtn.MouseButton1Click:Connect(function()
+			mutedPlayers[plr.UserId] = not (mutedPlayers[plr.UserId] or false)
+			local nowMuted = mutedPlayers[plr.UserId]
+			MuteBtn.Text = nowMuted and "MUTADO" or "MUTAR"
+			MuteBtn.BackgroundColor3 = nowMuted and Color3.fromRGB(180, 40, 40) or Color3.fromRGB(50, 50, 60)
+
+			if plr.Character then
+				for _, desc in ipairs(plr.Character:GetDescendants()) do
+					if desc:IsA("Sound") then desc.Volume = nowMuted and 0 or 1 end
+				end
+			end
+		end)
+	end
+end
+
+Players.PlayerAdded:Connect(updateMuteList)
+Players.PlayerRemoving:Connect(updateMuteList)
+updateMuteList()
+
+local isCopierEnabled = false
+
+local CopierCard = Instance.new("Frame")
+CopierCard.Size = UDim2.new(1, 0, 0, 130)
+CopierCard.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+CopierCard.Parent = CopierScroll
+Instance.new("UICorner", CopierCard).CornerRadius = UDim.new(0, 8)
+
+local CopierTitle = Instance.new("TextLabel")
+CopierTitle.Size = UDim2.new(1, 0, 0, 30)
+CopierTitle.Position = UDim2.new(0, 0, 0, 10)
+CopierTitle.BackgroundTransparency = 1
+CopierTitle.Font = Enum.Font.GothamBold
+CopierTitle.TextSize = 14
+CopierTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopierTitle.Text = "🎵 Copiador por Clique no Personagem"
+CopierTitle.Parent = CopierCard
+
+local CopierStatus = Instance.new("TextLabel")
+CopierStatus.Size = UDim2.new(1, -20, 0, 20)
+CopierStatus.Position = UDim2.new(0, 10, 0, 40)
+CopierStatus.BackgroundTransparency = 1
+CopierStatus.Font = Enum.Font.Gotham
+CopierStatus.TextSize = 12
+CopierStatus.TextColor3 = Color3.fromRGB(160, 160, 170)
+CopierStatus.Text = "Status: Desativado"
+CopierStatus.Parent = CopierCard
+
+local CopierToggleBtn = Instance.new("TextButton")
+CopierToggleBtn.Size = UDim2.new(1, -40, 0, 45)
+CopierToggleBtn.Position = UDim2.new(0, 20, 0, 68)
+CopierToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+CopierToggleBtn.Font = Enum.Font.GothamBold
+CopierToggleBtn.TextSize = 13
+CopierToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopierToggleBtn.Text = "ATIVAR MODO CLIQUE"
+CopierToggleBtn.Parent = CopierCard
+Instance.new("UICorner", CopierToggleBtn).CornerRadius = UDim.new(0, 6)
+
+CopierToggleBtn.MouseButton1Click:Connect(function()
+	isCopierEnabled = not isCopierEnabled
+	if isCopierEnabled then
+		CopierToggleBtn.Text = "DESATIVAR MODO CLIQUE"
+		CopierToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+		CopierStatus.Text = "Status: Ativo! Clique em qualquer player."
+		CopierStatus.TextColor3 = Color3.fromRGB(40, 180, 80)
+	else
+		CopierToggleBtn.Text = "ATIVAR MODO CLIQUE"
+		CopierToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+		CopierStatus.Text = "Status: Desativado"
+		CopierStatus.TextColor3 = Color3.fromRGB(160, 160, 170)
+	end
+end)
+
+local function getBoomboxTrackId(character)
+	local candidateIds = {}
+	pcall(function()
+		for _, obj in ipairs(character:GetDescendants()) do
+			local foundRaw = nil
+			if obj:IsA("Sound") and obj.SoundId ~= "" then
+				foundRaw = obj.SoundId
+			elseif obj:IsA("StringValue") or obj:IsA("IntValue") then
+				if string.find(obj.Name:lower(), "track") or string.find(obj.Name:lower(), "sound") or string.find(obj.Name:lower(), "music") or string.find(obj.Name:lower(), "audio") then
+					foundRaw = tostring(obj.Value)
+				end
+			end
+			if foundRaw then
+				local numOnly = string.match(foundRaw, "%d+")
+				if numOnly and #numOnly >= 7 then table.insert(candidateIds, numOnly) end
+			end
+		end
+	end)
+	return (#candidateIds > 0) and candidateIds[1] or nil
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed or not isCopierEnabled then return end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		local target = Mouse.Target
+		if not target then return end
+		
+		local character = target:FindFirstAncestorOfClass("Model")
+		if character and not Players:GetPlayerFromCharacter(character) then
+			character = character:FindFirstAncestorOfClass("Model")
+		end
+		
+		if character then
+			local clickedPlayer = Players:GetPlayerFromCharacter(character)
+			if clickedPlayer and clickedPlayer ~= LocalPlayer then
+				local audioId = getBoomboxTrackId(character)
+				if audioId then
+					pcall(function()
+						if setclipboard then setclipboard(audioId)
+						elseif toclipboard then toclipboard(audioId) end
+					end)
+					CopierStatus.Text = "✅ Copiado ID: " .. audioId
+					CopierStatus.TextColor3 = Color3.fromRGB(40, 180, 80)
+					task.delay(2, function()
+						if isCopierEnabled then CopierStatus.Text = "Status: Ativo! Clique em qualquer player." end
+					end)
+				else
+					CopierStatus.Text = "❌ O jogador não está tocando áudio!"
+					CopierStatus.TextColor3 = Color3.fromRGB(255, 80, 80)
+				end
+			end
+		end
+	end
+end)
+
+local SearchWebBox = Instance.new("TextBox")
+SearchWebBox.Size = UDim2.new(1, -95, 0, 35)
+SearchWebBox.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+SearchWebBox.Font = Enum.Font.Gotham
+SearchWebBox.TextSize = 12
+SearchWebBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SearchWebBox.PlaceholderText = "Digite o nome da música ou criador..."
+SearchWebBox.Text = ""
+SearchWebBox.Parent = WebSearchScroll
+Instance.new("UICorner", SearchWebBox).CornerRadius = UDim.new(0, 6)
+
+local SearchWebBtn = Instance.new("TextButton")
+SearchWebBtn.Size = UDim2.new(0, 85, 0, 35)
+SearchWebBtn.Position = UDim2.new(1, -85, 0, 0)
+SearchWebBtn.BackgroundColor3 = Color3.fromRGB(255, 45, 85)
+SearchWebBtn.Font = Enum.Font.GothamBold
+SearchWebBtn.TextSize = 12
+SearchWebBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+SearchWebBtn.Text = "Buscar 🔍"
+SearchWebBtn.Parent = WebSearchScroll
+Instance.new("UICorner", SearchWebBtn).CornerRadius = UDim.new(0, 6)
+
+local ResultsContainer = Instance.new("Frame")
+ResultsContainer.Size = UDim2.new(1, 0, 0, 0)
+ResultsContainer.BackgroundTransparency = 1
+ResultsContainer.Parent = WebSearchScroll
+
+local ResLayout = Instance.new("UIListLayout")
+ResLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ResLayout.Padding = UDim.new(0, 6)
+ResLayout.Parent = ResultsContainer
+
+ResLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	ResultsContainer.Size = UDim2.new(1, 0, 0, ResLayout.AbsoluteContentSize.Y)
+end)
+
+local function checkAudioValidity(assetId)
+	local success, info = pcall(function()
+		return MarketplaceService:GetProductInfo(assetId, Enum.InfoType.Asset)
+	end)
+	if success and info and (info.AssetTypeId == 3 or info.AssetTypeId == 62) then
+		return true, info
+	end
+	return false, nil
+end
+
+local function performWebSearch(query)
+	for _, c in pairs(ResultsContainer:GetChildren()) do 
+		if c:IsA("Frame") or c:IsA("TextLabel") then c:Destroy() end 
+	end
+	if query == "" then return end
+
+	local StatusLbl = Instance.new("TextLabel")
+	StatusLbl.Size = UDim2.new(1, 0, 0, 30)
+	StatusLbl.BackgroundTransparency = 1
+	StatusLbl.Font = Enum.Font.Gotham
+	StatusLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+	StatusLbl.Text = "🔍 Buscando e filtrando IDs válidos..."
+	StatusLbl.Parent = ResultsContainer
+
+	task.spawn(function()
+		local proxies = {
+			"https://catalog.roproxy.com/v1/search/items?category=Audio&keyword=",
+			"https://catalog.roblox.com/v1/search/items?category=Audio&keyword="
+		}
+		
+		local response = nil
+		local success = false
+		
+		for _, proxyBase in ipairs(proxies) do
+			local url = proxyBase .. HttpService:UrlEncode(query) .. "&limit=15"
+			local reqSuccess, reqRes = pcall(function() return game:HttpGet(url) end)
+			if reqSuccess and reqRes and #reqRes > 10 then
+				success = true
+				response = reqRes
+				break
+			end
+		end
+
+		StatusLbl:Destroy()
+
+		if success and response then
+			local decodedSuccess, data = pcall(function() return HttpService:JSONDecode(response) end)
+			if decodedSuccess and data and data.data then
+				local validCount = 0
+				
+				for _, item in ipairs(data.data) do
+					local assetId = item.id
+					local isValid, assetInfo = checkAudioValidity(assetId)
+					
+					if isValid then
+						validCount = validCount + 1
+						
+						local card = Instance.new("Frame")
+						card.Size = UDim2.new(1, 0, 0, 48)
+						card.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
+						card.Parent = ResultsContainer
+						Instance.new("UICorner", card).CornerRadius = UDim.new(0, 6)
+
+						local ItemName = Instance.new("TextLabel")
+						ItemName.Size = UDim2.new(1, -140, 0, 22)
+						ItemName.Position = UDim2.new(0, 10, 0, 4)
+						ItemName.BackgroundTransparency = 1
+						ItemName.Font = Enum.Font.GothamBold
+						ItemName.TextSize = 12
+						ItemName.TextColor3 = Color3.fromRGB(255, 255, 255)
+						ItemName.TextXAlignment = Enum.TextXAlignment.Left
+						ItemName.TextTruncate = Enum.TextTruncate.AtEnd
+						ItemName.Text = assetInfo.Name or "Áudio"
+						ItemName.Parent = card
+
+						local ItemCreator = Instance.new("TextLabel")
+						ItemCreator.Size = UDim2.new(1, -140, 0, 16)
+						ItemCreator.Position = UDim2.new(0, 10, 0, 24)
+						ItemCreator.BackgroundTransparency = 1
+						ItemCreator.Font = Enum.Font.Gotham
+						ItemCreator.TextSize = 10
+						ItemCreator.TextColor3 = Color3.fromRGB(40, 180, 80)
+						ItemCreator.TextXAlignment = Enum.TextXAlignment.Left
+						ItemCreator.Text = "Por: " .. ((assetInfo.Creator and assetInfo.Creator.Name) or "Roblox") .. " | ID: " .. tostring(assetId)
+						ItemCreator.Parent = card
+
+						local PlayBtn = Instance.new("TextButton")
+						PlayBtn.Size = UDim2.new(0, 60, 0, 28)
+						PlayBtn.Position = UDim2.new(1, -125, 0.5, -14)
+						PlayBtn.BackgroundColor3 = Color3.fromRGB(255, 45, 85)
+						PlayBtn.Font = Enum.Font.GothamBold
+						PlayBtn.TextSize = 11
+						PlayBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+						PlayBtn.Text = "Tocar"
+						PlayBtn.Parent = card
+						Instance.new("UICorner", PlayBtn).CornerRadius = UDim.new(0, 4)
+
+						PlayBtn.MouseButton1Click:Connect(function()
+							currentPage = 1
+							UpdatePageVisibility()
+							playAudio(tostring(assetId))
+						end)
+
+						local CopyBtn = Instance.new("TextButton")
+						CopyBtn.Size = UDim2.new(0, 55, 0, 28)
+						CopyBtn.Position = UDim2.new(1, -60, 0.5, -14)
+						CopyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+						CopyBtn.Font = Enum.Font.GothamBold
+						CopyBtn.TextSize = 11
+						CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+						CopyBtn.Text = "Copiar"
+						CopyBtn.Parent = card
+						Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 4)
+
+						CopyBtn.MouseButton1Click:Connect(function()
+							local targetId = tostring(assetId)
+							pcall(function()
+								if setclipboard then setclipboard(targetId)
+								elseif toclipboard then toclipboard(targetId) end
+							end)
+							CopyBtn.Text = "✅"
+							CopyBtn.BackgroundColor3 = Color3.fromRGB(40, 180, 80)
+							task.delay(1.5, function()
+								CopyBtn.Text = "Copiar"
+								CopyBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+							end)
+						end)
+					end
+				end
+
+				if validCount == 0 then
+					local Err = Instance.new("TextLabel")
+					Err.Size = UDim2.new(1, 0, 0, 30)
+					Err.BackgroundTransparency = 1
+					Err.Font = Enum.Font.Gotham
+					Err.TextColor3 = Color3.fromRGB(255, 100, 100)
+					Err.Text = "Nenhum ID ativo/desbanido encontrado para essa busca."
+					Err.Parent = ResultsContainer
+				end
+			end
+		else
+			local Err = Instance.new("TextLabel")
+			Err.Size = UDim2.new(1, 0, 0, 30)
+			Err.BackgroundTransparency = 1
+			Err.Font = Enum.Font.Gotham
+			Err.TextColor3 = Color3.fromRGB(255, 100, 100)
+			Err.Text = "Erro ao buscar na Web (Proxy Offline ou sem resposta)."
+			Err.Parent = ResultsContainer
+		end
+	end)
+end
+
+SearchWebBtn.MouseButton1Click:Connect(function() performWebSearch(SearchWebBox.Text) end)
+SearchWebBox.FocusLost:Connect(function(enterPressed) if enterPressed then performWebSearch(SearchWebBox.Text) end end)
+
+RunService.Heartbeat:Connect(function(deltaTime)
+	local loudness = LocalSound.IsPlaying and LocalSound.PlaybackLoudness or 0
+	local normLoud = math.clamp(loudness / 400, 0, 1)
+
+	for i, bar in ipairs(visBars) do
+		local factor = math.sin((i / totalBars) * math.pi)
+		local noise = math.sin(tick() * 12 + i * 0.4) * 0.2
+		local targetH = math.clamp((normLoud * 38 * factor) + (normLoud * noise * 10), 4, 42)
+		
+		bar.Size = bar.Size:Lerp(UDim2.new(1/totalBars, -2, 0, targetH), 0.35)
+		bar.Position = UDim2.new((i-1)/totalBars, 0, 1, -bar.Size.Y.Offset)
+	end
+
+	if LocalSound.IsPlaying and LocalSound.TimeLength > 0 then
+		local progress = LocalSound.TimePosition / LocalSound.TimeLength
+		ProgressDot.Position = UDim2.new(progress, -5, 0.5, -5)
+		TimeLabel.Text = string.format("%02d:%02d / %02d:%02d", 
+			math.floor(LocalSound.TimePosition/60), math.floor(LocalSound.TimePosition%60),
+			math.floor(LocalSound.TimeLength/60), math.floor(LocalSound.TimeLength%60))
+	else
+		ProgressDot.Position = UDim2.new(0, -5, 0.5, -5)
+		TimeLabel.Text = "00:00 / 00:00"
+	end
+
+	for userId, isMuted in pairs(mutedPlayers) do
+		if isMuted then
+			local plr = Players:GetPlayerByUserId(userId)
+			if plr and plr.Character then
+				for _, desc in ipairs(plr.Character:GetDescendants()) do
+					if desc:IsA("Sound") and desc.Volume > 0 then desc.Volume = 0 end
+				end
+			end
+		end
+	end
+end)
+
+MainButton.MouseButton1Click:Connect(function()
+	if UI_OPEN then
+		local closeTween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
+		closeTween:Play()
+		closeTween.Completed:Wait()
+		MainFrame.Visible = false
+		UI_OPEN = false
+	else
+		MainFrame.Visible = true
+		local openTween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = TARGET_SIZE})
+		openTween:Play()
+		UI_OPEN = true
+	end
+end)
