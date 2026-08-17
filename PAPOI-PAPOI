@@ -1,0 +1,449 @@
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ExecutorMobileGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+local function makeDraggable(frame)
+	local dragging, dragInput, dragStart, startPos
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	frame.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+local MainToggle = Instance.new("TextButton")
+MainToggle.Size = UDim2.new(0, 60, 0, 60)
+MainToggle.Position = UDim2.new(0, 30, 0.4, 0)
+MainToggle.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MainToggle.Text = "Menu"
+MainToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+MainToggle.Font = Enum.Font.SourceSansBold
+MainToggle.TextSize = 16
+MainToggle.ZIndex = 10
+MainToggle.Parent = ScreenGui
+
+local MainToggleCorner = Instance.new("UICorner")
+MainToggleCorner.CornerRadius = UDim.new(1, 0)
+MainToggleCorner.Parent = MainToggle
+
+local MainToggleStroke = Instance.new("UIStroke")
+MainToggleStroke.Color = Color3.fromRGB(0, 170, 255)
+MainToggleStroke.Thickness = 2
+MainToggleStroke.Parent = MainToggle
+
+makeDraggable(MainToggle)
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 420, 0, 280)
+MainFrame.Position = UDim2.new(0.5, -210, 0.5, -140)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainFrame
+
+makeDraggable(MainFrame)
+
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 110, 1, 0)
+Sidebar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Sidebar.Parent = MainFrame
+
+local SidebarCorner = Instance.new("UICorner")
+SidebarCorner.CornerRadius = UDim.new(0, 8)
+SidebarCorner.Parent = Sidebar
+
+local SidebarLayout = Instance.new("UIListLayout")
+SidebarLayout.Padding = UDim.new(0, 6)
+SidebarLayout.Parent = Sidebar
+
+local SidebarPadding = Instance.new("UIPadding")
+SidebarPadding.PaddingTop = UDim.new(0, 10)
+SidebarPadding.PaddingLeft = UDim.new(0, 5)
+SidebarPadding.PaddingRight = UDim.new(0, 5)
+SidebarPadding.Parent = Sidebar
+
+local Container = Instance.new("Frame")
+Container.Size = UDim2.new(1, -120, 1, -20)
+Container.Position = UDim2.new(0, 115, 0, 10)
+Container.BackgroundTransparency = 1
+Container.Parent = MainFrame
+
+local clickTime = 0
+MainToggle.MouseButton1Down:Connect(function() clickTime = tick() end)
+MainToggle.MouseButton1Up:Connect(function()
+	if tick() - clickTime < 0.22 then MainFrame.Visible = not MainFrame.Visible end
+end)
+
+local currentTab = nil
+
+local function CreateTab(name)
+	local Btn = Instance.new("TextButton")
+	Btn.Size = UDim2.new(1, 0, 0, 32)
+	Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+	Btn.Text = name
+	Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	Btn.Font = Enum.Font.SourceSansBold
+	Btn.TextSize = 14
+	Btn.Parent = Sidebar
+	
+	local BtnCorner = Instance.new("UICorner")
+	BtnCorner.CornerRadius = UDim.new(0, 4)
+	BtnCorner.Parent = Btn
+
+	local Page = Instance.new("ScrollingFrame")
+	Page.Size = UDim2.new(1, 0, 1, 0)
+	Page.BackgroundTransparency = 1
+	Page.ScrollBarThickness = 3
+	Page.Visible = false
+	Page.Parent = Container
+	
+	local PageLayout = Instance.new("UIListLayout")
+	PageLayout.Padding = UDim.new(0, 8)
+	PageLayout.Parent = Page
+
+	Btn.MouseButton1Click:Connect(function()
+		if currentTab then
+			currentTab.Page.Visible = false
+			currentTab.Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+		end
+		currentTab = {Page = Page, Btn = Btn}
+		Page.Visible = true
+		Btn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	end)
+
+	if #Sidebar:GetChildren() == 3 then
+		currentTab = {Page = Page, Btn = Btn}
+		Page.Visible = true
+		Btn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+	end
+
+	return Page
+end
+
+local function AddTextBox(parent, placeholder)
+	local box = Instance.new("TextBox")
+	box.Size = UDim2.new(1, -10, 0, 35)
+	box.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	box.PlaceholderText = placeholder
+	box.Text = ""
+	box.TextColor3 = Color3.fromRGB(255, 255, 255)
+	box.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+	box.Font = Enum.Font.SourceSans
+	box.TextSize = 14
+	box.Parent = parent
+	Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+	return box
+end
+
+local function AddButton(parent, text, color)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, -10, 0, 35)
+	btn.BackgroundColor3 = color or Color3.fromRGB(40, 40, 40)
+	btn.Text = text
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.SourceSansBold
+	btn.TextSize = 14
+	btn.Parent = parent
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 4)
+	return btn
+end
+
+local PagePlayer = CreateTab("Player")
+local PageAimbot = CreateTab("Aimbot")
+local PageScan = CreateTab("Scan")
+
+local TargetValueSpeed = 16
+local SpeedActive = false
+local InfJumpActive = false -- Variável de controle do Pulo Infinito
+
+local AimbotSystemActive = false
+local AimbotLockActive = false
+local FovRadiusValue = 100
+local CurrentAimbotTarget = nil
+
+local ScanSystemActive = false
+local ScanLockActive = false
+local CurrentScanTarget = nil
+
+local FovCircleFrame = Instance.new("Frame")
+FovCircleFrame.Size = UDim2.new(0, FovRadiusValue * 2, 0, FovRadiusValue * 2)
+FovCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+FovCircleFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+FovCircleFrame.BackgroundTransparency = 1
+FovCircleFrame.Visible = false
+FovCircleFrame.Parent = ScreenGui
+
+local FovCorner = Instance.new("UICorner")
+FovCorner.CornerRadius = UDim.new(1, 0)
+FovCorner.Parent = FovCircleFrame
+
+local FovStroke = Instance.new("UIStroke")
+FovStroke.Color = Color3.fromRGB(255, 0, 0)
+FovStroke.Thickness = 1.5
+FovStroke.Parent = FovCircleFrame
+
+local SpeedInput = AddTextBox(PagePlayer, "Digite a velocidade do Executor (Ex: 50)...")
+local SpeedBtn = AddButton(PagePlayer, "Ativar Velocidade Executor", Color3.fromRGB(40, 40, 40))
+
+SpeedBtn.MouseButton1Click:Connect(function()
+	local num = tonumber(SpeedInput.Text)
+	if num then
+		TargetValueSpeed = num
+		SpeedActive = true
+		SpeedBtn.Text = "Velocidade Modificada ("..tostring(num)..")"
+		SpeedBtn.BackgroundColor3 = Color3.fromRGB(0, 135, 70)
+	else
+		SpeedActive = false
+		SpeedBtn.Text = "Velocidade Padrão Restaurada"
+		SpeedBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	end
+end)
+
+-- Botão de Ativar/Desativar Pulo Infinito
+local InfJumpBtn = AddButton(PagePlayer, "Ativar Pulo Infinito", Color3.fromRGB(40, 40, 40))
+
+InfJumpBtn.MouseButton1Click:Connect(function()
+	InfJumpActive = not InfJumpActive
+	if InfJumpActive then
+		InfJumpBtn.Text = "Desativar Pulo Infinito"
+		InfJumpBtn.BackgroundColor3 = Color3.fromRGB(0, 135, 70)
+	else
+		InfJumpBtn.Text = "Ativar Pulo Infinito"
+		InfJumpBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	end
+end)
+
+-- Evento que executa o pulo infinito quando a tecla de pulo é acionada
+UserInputService.JumpRequest:Connect(function()
+	if InfJumpActive then
+		local character = LocalPlayer.Character
+		if character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+			end
+		end
+	end
+end)
+
+RunService.Heartbeat:Connect(function()
+	if SpeedActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = LocalPlayer.Character.HumanoidRootPart
+		local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid.MoveDirection.Magnitude > 0 then
+			hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (TargetValueSpeed / 45))
+		end
+	end
+end)
+
+local function CreateExternalButton(text, color, defaultYOffset)
+	local extBtn = Instance.new("TextButton")
+	extBtn.Size = UDim2.new(0, 50, 0, 50)
+	extBtn.Position = UDim2.new(0.85, 0, 0, defaultYOffset)
+	extBtn.BackgroundColor3 = color
+	extBtn.Text = text
+	extBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	extBtn.Font = Enum.Font.SourceSansBold
+	extBtn.TextSize = 13
+	extBtn.Visible = false
+	extBtn.ZIndex = 9
+	extBtn.Parent = ScreenGui
+	Instance.new("UICorner", extBtn).CornerRadius = UDim.new(1, 0)
+	local strk = Instance.new("UIStroke", extBtn)
+	strk.Color = Color3.fromRGB(255,255,255)
+	strk.Thickness = 1.5
+	makeDraggable(extBtn)
+	return extBtn
+end
+
+local FloatAimbotButton = CreateExternalButton("Mira\nOFF", Color3.fromRGB(150, 20, 20), 120)
+local FloatScanButton = CreateExternalButton("Scan\nOFF", Color3.fromRGB(150, 80, 20), 180)
+
+local AimToggleBtn = AddButton(PageAimbot, "Ativar Sistema Aimbot", Color3.fromRGB(40, 40, 40))
+local FovInput = AddTextBox(PageAimbot, "Tamanho do Círculo Vermelho (Ex: 120)...")
+local FovApplyBtn = AddButton(PageAimbot, "Atualizar Tamanho FOV", Color3.fromRGB(60, 60, 60))
+
+FovApplyBtn.MouseButton1Click:Connect(function()
+	local fv = tonumber(FovInput.Text)
+	if fv then
+		FovRadiusValue = fv
+		FovCircleFrame.Size = UDim2.new(0, fv * 2, 0, fv * 2)
+	end
+end)
+
+AimToggleBtn.MouseButton1Click:Connect(function()
+	AimbotSystemActive = not AimbotSystemActive
+	if AimbotSystemActive then
+		AimToggleBtn.Text = "Desativar Sistema Aimbot"
+		AimToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 135, 70)
+		FovCircleFrame.Visible = true
+		FloatAimbotButton.Visible = true
+	else
+		AimToggleBtn.Text = "Ativar Sistema Aimbot"
+		AimToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		FovCircleFrame.Visible = false
+		FloatAimbotButton.Visible = false
+		AimbotLockActive = false
+		CurrentAimbotTarget = nil
+		FloatAimbotButton.Text = "Mira\nOFF"
+		FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(150, 20, 20)
+	end
+end)
+
+local aimClick = 0
+FloatAimbotButton.MouseButton1Down:Connect(function() aimClick = tick() end)
+FloatAimbotButton.MouseButton1Up:Connect(function()
+	if tick() - aimClick < 0.22 and AimbotSystemActive then
+		AimbotLockActive = not AimbotLockActive
+		if AimbotLockActive then
+			FloatAimbotButton.Text = "Mira\nON"
+			FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(20, 150, 20)
+		else
+			CurrentAimbotTarget = nil
+			FloatAimbotButton.Text = "Mira\nOFF"
+			FloatAimbotButton.BackgroundColor3 = Color3.fromRGB(150, 20, 20)
+		end
+	end
+end)
+
+local function GetClosestPlayerToCenter()
+	local closestPlayer = nil
+	local shortestDistance = FovRadiusValue
+	local centerScreen = Camera.ViewportSize / 2
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
+			local hrp = player.Character.HumanoidRootPart
+			local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+			
+			if onScreen then
+				local distance = (Vector2.new(screenPos.X, screenPos.Y) - centerScreen).Magnitude
+				if distance < shortestDistance then
+					shortestDistance = distance
+					closestPlayer = player
+				end
+			end
+		end
+	end
+	return closestPlayer
+end
+
+local ScanToggleBtn = AddButton(PageScan, "Ativar Sistema Scan", Color3.fromRGB(40, 40, 40))
+
+ScanToggleBtn.MouseButton1Click:Connect(function()
+	ScanSystemActive = not ScanSystemActive
+	if ScanSystemActive then
+		ScanToggleBtn.Text = "Desativar Sistema Scan"
+		ScanToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 135, 70)
+		FloatScanButton.Visible = true
+	else
+		ScanToggleBtn.Text = "Ativar Sistema Scan"
+		ScanToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		FloatScanButton.Visible = false
+		ScanLockActive = false
+		CurrentScanTarget = nil
+		FloatScanButton.Text = "Scan\nOFF"
+		FloatScanButton.BackgroundColor3 = Color3.fromRGB(150, 80, 20)
+	end
+end)
+
+local scanClick = 0
+FloatScanButton.MouseButton1Down:Connect(function() scanClick = tick() end)
+FloatScanButton.MouseButton1Up:Connect(function()
+	if tick() - scanClick < 0.22 and ScanSystemActive then
+		ScanLockActive = not ScanLockActive
+		if ScanLockActive then
+			FloatScanButton.Text = "Scan\nON"
+			FloatScanButton.BackgroundColor3 = Color3.fromRGB(20, 150, 20)
+		else
+			CurrentScanTarget = nil
+			FloatScanButton.Text = "Scan\nOFF"
+			FloatScanButton.BackgroundColor3 = Color3.fromRGB(150, 80, 20)
+		end
+	end
+end)
+
+local function GetClosestPlayerToMe()
+	local closestPlayer = nil
+	local shortestDistance = math.huge
+	
+	if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return nil end
+	local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0 then
+			local targetHrp = player.Character.HumanoidRootPart
+			local distance = (targetHrp.Position - myPos).Magnitude
+			
+			if distance < shortestDistance then
+				shortestDistance = distance
+				closestPlayer = player
+			end
+		end
+	end
+	return closestPlayer
+end
+
+local function isCharacterValid(player)
+	return player and player.Parent and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChildOfClass("Humanoid").Health > 0
+end
+
+RunService.RenderStepped:Connect(function()
+	if AimbotSystemActive and AimbotLockActive then
+		if not CurrentAimbotTarget or not isCharacterValid(CurrentAimbotTarget) then
+			CurrentAimbotTarget = GetClosestPlayerToCenter()
+		end
+		
+		if CurrentAimbotTarget and CurrentAimbotTarget.Character then
+			local targetPos = CurrentAimbotTarget.Character:FindFirstChild("Head") and CurrentAimbotTarget.Character.Head.Position or CurrentAimbotTarget.Character.HumanoidRootPart.Position
+			Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+		end
+	else
+		CurrentAimbotTarget = nil
+	end
+	
+	if ScanSystemActive and ScanLockActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		if not CurrentScanTarget or not isCharacterValid(CurrentScanTarget) then
+			CurrentScanTarget = GetClosestPlayerToMe()
+		end
+		
+		if CurrentScanTarget and CurrentScanTarget.Character and CurrentScanTarget.Character:FindFirstChild("HumanoidRootPart") then
+			local myHrp = LocalPlayer.Character.HumanoidRootPart
+			local targetHrp = CurrentScanTarget.Character.HumanoidRootPart
+			local lookAtPosition = Vector3.new(targetHrp.Position.X, myHrp.Position.Y, targetHrp.Position.Z)
+			myHrp.CFrame = CFrame.new(myHrp.Position, lookAtPosition)
+		end
+	else
+		CurrentScanTarget = nil
+	end
+end)
