@@ -1,0 +1,311 @@
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+local fileName = "KURANOVAV_Bg.jpg"
+local fileUrl = "https://raw.githubusercontent.com/JooJxNinja/KURANOVAV-ID/refs/heads/main/Screenshot_20260820_020242_Chrome.jpg"
+
+local function loadBackgroundImage()
+    if isfile and writefile and not isfile(fileName) then
+        local success, response = pcall(function() return game:HttpGet(fileUrl) end)
+        if success then writefile(fileName, response) end
+    end
+    return (getcustomasset and isfile(fileName)) and getcustomasset(fileName) or fileUrl
+end
+
+if CoreGui:FindFirstChild("KuranovavGUI") then CoreGui.KuranovavGUI:Destroy() end
+
+local ScreenGui = Instance.new("ScreenGui", CoreGui)
+ScreenGui.Name = "KuranovavGUI"
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 500, 0, 350)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 14)
+
+local Container = Instance.new("Frame", MainFrame)
+Container.Size = UDim2.new(1, -14, 1, -14)
+Container.Position = UDim2.new(0, 7, 0, 7)
+Container.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Instance.new("UICorner", Container).CornerRadius = UDim.new(0, 12)
+Container.ClipsDescendants = true
+
+local Bg = Instance.new("ImageLabel", Container)
+Bg.Size = UDim2.new(1, 0, 1, 0)
+Bg.Image = loadBackgroundImage()
+Bg.BackgroundTransparency = 1
+Bg.ImageTransparency = 0.55
+Bg.ScaleType = Enum.ScaleType.Stretch
+
+local dragging, dragStart, startPos
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+local Header = Instance.new("Frame", Container)
+Header.Size = UDim2.new(1, 0, 0, 40)
+Header.BackgroundTransparency = 1
+local HeaderLayout = Instance.new("UIListLayout", Header)
+HeaderLayout.FillDirection = Enum.FillDirection.Horizontal
+HeaderLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+HeaderLayout.Padding = UDim.new(0, 6)
+
+local PagesContainer = Instance.new("Frame", Container)
+PagesContainer.Size = UDim2.new(1, 0, 1, -45)
+PagesContainer.Position = UDim2.new(0, 0, 0, 45)
+PagesContainer.BackgroundTransparency = 1
+
+local Pages = {}
+local function CreateTab(name)
+    local btn = Instance.new("TextButton", Header)
+    btn.Size = UDim2.new(0, 140, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    btn.BackgroundTransparency = 0.4
+    btn.Text = name
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 13
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    
+    local page = Instance.new("ScrollingFrame", PagesContainer)
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+    page.ScrollBarThickness = 3
+    local pageLayout = Instance.new("UIListLayout", page)
+    pageLayout.Padding = UDim.new(0, 8)
+    
+    Pages[name] = page
+    
+    btn.MouseButton1Click:Connect(function()
+        for _, p in pairs(Pages) do p.Visible = false end
+        page.Visible = true
+    end)
+end
+
+CreateTab("Players")
+CreateTab("Aimbot")
+CreateTab("Configurações")
+Pages["Players"].Visible = true
+
+local function CreateStyledButton(parent, text, callback)
+    local btn = Instance.new("TextButton", parent)
+    btn.Size = UDim2.new(1, 0, 0, 35)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    btn.BackgroundTransparency = 0.4
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    btn.MouseButton1Click:Connect(function() callback(btn) end)
+    return btn
+end
+
+local function CreateStyledTextBox(parent, placeholder)
+    local box = Instance.new("TextBox", parent)
+    box.Size = UDim2.new(1, 0, 0, 35)
+    box.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    box.BackgroundTransparency = 0.4
+    box.PlaceholderText = placeholder
+    box.Text = ""
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.PlaceholderColor3 = Color3.fromRGB(160, 160, 160)
+    box.Font = Enum.Font.Gotham
+    box.TextSize = 13
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+    return box
+end
+
+local SpeedInput = CreateStyledTextBox(Pages["Players"], "Digite a velocidade (Ex: 50)...")
+local SpeedActive = false
+local TargetValueSpeed = 16
+
+CreateStyledButton(Pages["Players"], "Ativar Velocidade", function(btn)
+    local num = tonumber(SpeedInput.Text)
+    if num then
+        if SpeedActive and TargetValueSpeed == num then
+            SpeedActive = false
+            btn.Text = "Ativar Velocidade"
+        else
+            TargetValueSpeed = num
+            SpeedActive = true
+            btn.Text = "Velocidade Ativa ("..tostring(num)..")"
+        end
+    else
+        SpeedActive = false
+        btn.Text = "Ativar Velocidade"
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if SpeedActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid.MoveDirection.Magnitude > 0 then
+            hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (TargetValueSpeed / 45))
+        end
+    end
+end)
+
+local AimbotEnabled = false
+local TargetPart = "Head"
+local FOVRadius = 150
+local AimKey = Enum.KeyCode.E
+
+local FOVCircle = Instance.new("Frame", ScreenGui)
+FOVCircle.Size = UDim2.new(0, FOVRadius*2, 0, FOVRadius*2)
+FOVCircle.Position = UDim2.new(0.5, -FOVRadius, 0.5, -FOVRadius)
+FOVCircle.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+FOVCircle.BackgroundTransparency = 1
+FOVCircle.Visible = true
+Instance.new("UICorner", FOVCircle).CornerRadius = UDim.new(1, 0)
+local FOVStroke = Instance.new("UIStroke", FOVCircle)
+FOVStroke.Color = Color3.fromRGB(0, 0, 0)
+FOVStroke.Thickness = 2
+
+local AimbotBtn = CreateStyledButton(Pages["Aimbot"], "Aimbot: OFF", function(btn)
+    AimbotEnabled = not AimbotEnabled
+    btn.Text = AimbotEnabled and "Aimbot: ON" or "Aimbot: OFF"
+end)
+
+local DropdownBtn = CreateStyledButton(Pages["Aimbot"], "Alvo: Cabeça ∨", function() end)
+
+local OptionsFrame = Instance.new("Frame", Pages["Aimbot"])
+OptionsFrame.Size = UDim2.new(1, 0, 0, 75)
+OptionsFrame.BackgroundTransparency = 1
+OptionsFrame.Visible = false
+local optList = Instance.new("UIListLayout", OptionsFrame)
+optList.Padding = UDim.new(0, 5)
+
+local function AddDropdownOption(name)
+    CreateStyledButton(OptionsFrame, name, function()
+        TargetPart = name
+        DropdownBtn.Text = "Alvo: " .. name .. " ∨"
+        OptionsFrame.Visible = false
+    end)
+end
+AddDropdownOption("Head")
+AddDropdownOption("Torso")
+
+DropdownBtn.MouseButton1Click:Connect(function()
+    OptionsFrame.Visible = not OptionsFrame.Visible
+    DropdownBtn.Text = OptionsFrame.Visible and "Alvo... ∧" or "Alvo: " .. TargetPart .. " ∨"
+end)
+
+local FOVBox = CreateStyledTextBox(Pages["Aimbot"], "Tamanho FOV (Ex: 150)...")
+FOVBox.FocusLost:Connect(function()
+    local val = tonumber(FOVBox.Text)
+    if val then
+        FOVRadius = val
+        FOVCircle.Size = UDim2.new(0, FOVRadius*2, 0, FOVRadius*2)
+        FOVCircle.Position = UDim2.new(0.5, -FOVRadius, 0.5, -FOVRadius)
+    end
+end)
+
+local KeyBox = CreateStyledTextBox(Pages["Configurações"], "Tecla Atalho Aimbot (Ex: E)...")
+KeyBox.FocusLost:Connect(function()
+    local k = string.upper(KeyBox.Text)
+    if Enum.KeyCode[k] then AimKey = Enum.KeyCode[k] end
+end)
+
+-- Sistema de Atalho PC (Tecla K) e Mobile (Segurar 3 dedos por 1 segundo)
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if not gpe then
+        if input.KeyCode == Enum.KeyCode.K then
+            MainFrame.Visible = not MainFrame.Visible
+        elseif input.KeyCode == AimKey then
+            AimbotEnabled = not AimbotEnabled
+            AimbotBtn.Text = AimbotEnabled and "Aimbot: ON" or "Aimbot: OFF"
+        end
+    end
+end)
+
+local touchTask = nil
+UserInputService.TouchStarted:Connect(function(_, processed)
+    if processed then return end
+    local activeTouches = UserInputService:GetTouches()
+    if #activeTouches >= 3 then
+        if touchTask then task.cancel(touchTask) end
+        touchTask = task.delay(1, function()
+            local currentTouches = UserInputService:GetTouches()
+            if #currentTouches >= 3 then
+                MainFrame.Visible = not MainFrame.Visible
+            end
+        end)
+    end
+end)
+
+UserInputService.TouchEnded:Connect(function()
+    local activeTouches = UserInputService:GetTouches()
+    if #activeTouches < 3 and touchTask then
+        task.cancel(touchTask)
+        touchTask = nil
+    end
+end)
+
+local currentTarget = nil
+
+RunService.RenderStepped:Connect(function()
+    if AimbotEnabled then
+        if not currentTarget or not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("Humanoid") or currentTarget.Parent.Humanoid.Health <= 0 then
+            local closest = nil
+            local dist = FOVRadius
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(TargetPart) then
+                    local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.Health > 0 then
+                        local pos, onScreen = Camera:WorldToViewportPoint(p.Character[TargetPart].Position)
+                        if onScreen then
+                            local d = (Vector2.new(pos.X, pos.Y) - Camera.ViewportSize/2).Magnitude
+                            if d < dist then
+                                closest = p.Character[TargetPart]
+                                dist = d
+                            end
+                        end
+                    end
+                end
+            end
+            currentTarget = closest
+        end
+        
+        if currentTarget and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local head = LocalPlayer.Character:FindFirstChild("Head") or LocalPlayer.Character.HumanoidRootPart
+            local targetPos = currentTarget.Position
+            
+            local currentDist = (Camera.CFrame.Position - head.Position).Magnitude
+            if currentDist < 2 then currentDist = 10 end
+            
+            local lookVector = (targetPos - head.Position).Unit
+            local newCamPos = head.Position - (lookVector * currentDist) + Vector3.new(0, 2, 0)
+            
+            Camera.CFrame = CFrame.new(newCamPos, targetPos)
+        end
+    else
+        currentTarget = nil
+    end
+end)
