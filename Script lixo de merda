@@ -1,0 +1,614 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "KuranovavIDGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local successGui = pcall(function()
+	ScreenGui.Parent = CoreGui
+end)
+if not successGui then
+	ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- Bloco anti-void (Invisível, com colisão, altura 0, seguindo X e Z do player R6)
+local antiVoidPart = Instance.new("Part")
+antiVoidPart.Name = "AntiVoidPlatform"
+antiVoidPart.Size = Vector3.new(20, 1, 20)
+antiVoidPart.Anchored = true
+antiVoidPart.CanCollide = true
+antiVoidPart.Transparency = 1 -- Totalmente invisível
+antiVoidPart.Parent = workspace
+
+RunService.RenderStepped:Connect(function()
+	local char = LocalPlayer.Character
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		local hrp = char.HumanoidRootPart
+		-- Fica exatamente na altura 0, acompanhando o player nos eixos X e Z
+		antiVoidPart.Position = Vector3.new(hrp.Position.X, 0, hrp.Position.Z)
+	end
+end)
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 420, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -210, 0.5, -160)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BackgroundTransparency = 0.3
+MainFrame.BorderSizePixel = 3
+MainFrame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local UICornerMain = Instance.new("UICorner")
+UICornerMain.CornerRadius = UDim.new(0, 8)
+UICornerMain.Parent = MainFrame
+
+local BackgroundImage = Instance.new("ImageLabel")
+BackgroundImage.Name = "BackgroundImage"
+BackgroundImage.Size = UDim2.new(1, 0, 1, 0)
+BackgroundImage.Position = UDim2.new(0, 0, 0, 0)
+BackgroundImage.BackgroundTransparency = 1
+BackgroundImage.ZIndex = 0
+BackgroundImage.Parent = MainFrame
+
+local UICornerBg = Instance.new("UICorner")
+UICornerBg.CornerRadius = UDim.new(0, 8)
+UICornerBg.Parent = BackgroundImage
+
+local imageUrl = "https://raw.githubusercontent.com/JooJxNinja/KURANOVAV-ID/refs/heads/main/Screenshot_20260820_085807_Chrome.jpg"
+local imageFileName = "kuranovav_bg_v2.jpg"
+
+task.spawn(function()
+	local success, content = pcall(function()
+		if writefile and readfile and isfile then
+			if not isfile(imageFileName) then
+				local response = game:HttpGet(imageUrl)
+				writefile(imageFileName, response)
+			end
+			return getcustomasset(imageFileName)
+		else
+			return imageUrl
+		end
+	end)
+	if success and content then
+		BackgroundImage.Image = content
+	else
+		BackgroundImage.Image = imageUrl
+	end
+end)
+
+local TopBar = Instance.new("Frame")
+TopBar.Name = "TopBar"
+TopBar.Size = UDim2.new(1, 0, 0, 38)
+TopBar.Position = UDim2.new(0, 0, 0, 0)
+TopBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+TopBar.BackgroundTransparency = 0.2
+TopBar.BorderSizePixel = 2
+TopBar.BorderColor3 = Color3.fromRGB(0, 0, 0)
+TopBar.ZIndex = 2
+TopBar.Parent = MainFrame
+
+local UICornerTop = Instance.new("UICorner")
+UICornerTop.CornerRadius = UDim.new(0, 8)
+UICornerTop.Parent = TopBar
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(0, 200, 1, 0)
+TitleLabel.Position = UDim2.new(0, 12, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 14
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Text = "KURANOVAV-ID"
+TitleLabel.ZIndex = 2
+TitleLabel.Parent = TopBar
+
+local currentToggleKey = Enum.KeyCode.K
+local waitingForKey = false
+
+local KeybindButton = Instance.new("TextButton")
+KeybindButton.Size = UDim2.new(0, 75, 0, 24)
+KeybindButton.Position = UDim2.new(1, -95, 0, 7)
+KeybindButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+KeybindButton.BackgroundTransparency = 0.5
+KeybindButton.BorderSizePixel = 2
+KeybindButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+KeybindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeybindButton.TextSize = 12
+KeybindButton.Font = Enum.Font.SourceSansBold
+KeybindButton.Text = "Key: K"
+KeybindButton.ZIndex = 3
+KeybindButton.Parent = TopBar
+
+local UICornerKey = Instance.new("UICorner")
+UICornerKey.CornerRadius = UDim.new(0, 6)
+UICornerKey.Parent = KeybindButton
+
+KeybindButton.MouseButton1Click:Connect(function()
+	waitingForKey = true
+	KeybindButton.Text = "..."
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if waitingForKey then
+		if input.UserInputType == Enum.UserInputType.Keyboard then
+			currentToggleKey = input.KeyCode
+			KeybindButton.Text = "Key: " .. currentToggleKey.Name
+			waitingForKey = false
+		end
+		return
+	end
+	
+	if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == currentToggleKey then
+		MainFrame.Visible = not MainFrame.Visible
+	end
+end)
+
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Name = "ContentContainer"
+ContentContainer.Size = UDim2.new(1, -16, 1, -50)
+ContentContainer.Position = UDim2.new(0, 8, 0, 44)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.ZIndex = 2
+ContentContainer.Parent = MainFrame
+
+local LeftPanel = Instance.new("Frame")
+LeftPanel.Size = UDim2.new(0.48, 0, 1, 0)
+LeftPanel.Position = UDim2.new(0, 0, 0, 0)
+LeftPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+LeftPanel.BackgroundTransparency = 0.5
+LeftPanel.BorderSizePixel = 2
+LeftPanel.BorderColor3 = Color3.fromRGB(0, 0, 0)
+LeftPanel.ZIndex = 2
+LeftPanel.Parent = ContentContainer
+
+local UICornerLeft = Instance.new("UICorner")
+UICornerLeft.CornerRadius = UDim.new(0, 6)
+UICornerLeft.Parent = LeftPanel
+
+local SearchBox = Instance.new("TextBox")
+SearchBox.Size = UDim2.new(1, -12, 0, 30)
+SearchBox.Position = UDim2.new(0, 6, 0, 6)
+SearchBox.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+SearchBox.BackgroundTransparency = 0.4
+SearchBox.BorderSizePixel = 2
+SearchBox.BorderColor3 = Color3.fromRGB(0, 0, 0)
+SearchBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SearchBox.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+SearchBox.PlaceholderText = "Pesquisar jogador..."
+SearchBox.TextSize = 13
+SearchBox.Font = Enum.Font.SourceSans
+SearchBox.Text = ""
+SearchBox.ClearTextOnFocus = false
+SearchBox.ZIndex = 3
+SearchBox.Parent = LeftPanel
+
+local UICornerSearch = Instance.new("UICorner")
+UICornerSearch.CornerRadius = UDim.new(0, 4)
+UICornerSearch.Parent = SearchBox
+
+local SearchIcon = Instance.new("Frame")
+SearchIcon.Size = UDim2.new(0, 14, 0, 14)
+SearchIcon.Position = UDim2.new(1, -22, 0.5, -7)
+SearchIcon.BackgroundTransparency = 1
+SearchIcon.ZIndex = 4
+SearchIcon.Parent = SearchBox
+
+local SearchCircle = Instance.new("Frame")
+SearchCircle.Size = UDim2.new(0, 10, 0, 10)
+SearchCircle.Position = UDim2.new(0, 0, 0, 0)
+SearchCircle.BackgroundTransparency = 1
+SearchCircle.BorderSizePixel = 2
+SearchCircle.BorderColor3 = Color3.fromRGB(255, 255, 255)
+SearchCircle.ZIndex = 4
+SearchCircle.Parent = SearchIcon
+
+local UICornerSC = Instance.new("UICorner")
+UICornerSC.CornerRadius = UDim.new(1, 0)
+UICornerSC.Parent = SearchCircle
+
+local SearchHandle = Instance.new("Frame")
+SearchHandle.Size = UDim2.new(0, 6, 0, 2)
+SearchHandle.Position = UDim2.new(0.65, 0, 0.65, 0)
+SearchHandle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+SearchHandle.BorderSizePixel = 0
+SearchHandle.Rotation = 45
+SearchHandle.ZIndex = 4
+SearchHandle.Parent = SearchIcon
+
+local PlayersScrolling = Instance.new("ScrollingFrame")
+PlayersScrolling.Size = UDim2.new(1, -12, 1, -48)
+PlayersScrolling.Position = UDim2.new(0, 6, 0, 42)
+PlayersScrolling.BackgroundTransparency = 1
+PlayersScrolling.BorderSizePixel = 0
+PlayersScrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
+PlayersScrolling.ScrollBarThickness = 4
+PlayersScrolling.ZIndex = 3
+PlayersScrolling.Parent = LeftPanel
+
+local UIListLayoutPlayers = Instance.new("UIListLayout")
+UIListLayoutPlayers.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayoutPlayers.Padding = UDim.new(0, 4)
+UIListLayoutPlayers.Parent = PlayersScrolling
+
+local RightPanel = Instance.new("Frame")
+RightPanel.Size = UDim2.new(0.48, 0, 1, 0)
+RightPanel.Position = UDim2.new(0.52, 0, 0, 0)
+RightPanel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+RightPanel.BackgroundTransparency = 0.5
+RightPanel.BorderSizePixel = 2
+RightPanel.BorderColor3 = Color3.fromRGB(0, 0, 0)
+RightPanel.ZIndex = 2
+RightPanel.Parent = ContentContainer
+
+local UICornerRight = Instance.new("UICorner")
+UICornerRight.CornerRadius = UDim.new(0, 6)
+UICornerRight.Parent = RightPanel
+
+local RightScrolling = Instance.new("ScrollingFrame")
+RightScrolling.Size = UDim2.new(1, -12, 1, -12)
+RightScrolling.Position = UDim2.new(0, 6, 0, 6)
+RightScrolling.BackgroundTransparency = 1
+RightScrolling.BorderSizePixel = 0
+RightScrolling.CanvasSize = UDim2.new(0, 0, 0, 0)
+RightScrolling.ScrollBarThickness = 4
+RightScrolling.ZIndex = 3
+RightScrolling.Parent = RightPanel
+
+local UIListLayoutRight = Instance.new("UIListLayout")
+UIListLayoutRight.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayoutRight.Padding = UDim.new(0, 6)
+UIListLayoutRight.Parent = RightScrolling
+
+local selectedPlayer = nil
+local selectedMode = "360°"
+local isActionActive = false
+
+local speedInput = Instance.new("TextBox")
+speedInput.Size = UDim2.new(1, 0, 0, 32)
+speedInput.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+speedInput.BackgroundTransparency = 0.5
+speedInput.BorderSizePixel = 2
+speedInput.BorderColor3 = Color3.fromRGB(0, 0, 0)
+speedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+speedInput.PlaceholderText = "Velocidade (ex: 10)"
+speedInput.TextSize = 13
+speedInput.Font = Enum.Font.SourceSansBold
+speedInput.Text = "10"
+speedInput.ClearTextOnFocus = false
+speedInput.ZIndex = 3
+speedInput.Parent = RightScrolling
+
+local UICornerSpd = Instance.new("UICorner")
+UICornerSpd.CornerRadius = UDim.new(0, 6)
+UICornerSpd.Parent = speedInput
+
+local distInput = Instance.new("TextBox")
+distInput.Size = UDim2.new(1, 0, 0, 32)
+distInput.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+distInput.BackgroundTransparency = 0.5
+distInput.BorderSizePixel = 2
+distInput.BorderColor3 = Color3.fromRGB(0, 0, 0)
+distInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+distInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+distInput.PlaceholderText = "Distância (ex: 5)"
+distInput.TextSize = 13
+distInput.Font = Enum.Font.SourceSansBold
+distInput.Text = "5"
+distInput.ClearTextOnFocus = false
+distInput.ZIndex = 3
+distInput.Parent = RightScrolling
+
+local UICornerDst = Instance.new("UICorner")
+UICornerDst.CornerRadius = UDim.new(0, 6)
+UICornerDst.Parent = distInput
+
+local modeDropdownBtn = Instance.new("TextButton")
+modeDropdownBtn.Size = UDim2.new(1, 0, 0, 30)
+modeDropdownBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+modeDropdownBtn.BackgroundTransparency = 0.5
+modeDropdownBtn.BorderSizePixel = 2
+modeDropdownBtn.BorderColor3 = Color3.fromRGB(0, 255, 0)
+modeDropdownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+modeDropdownBtn.TextSize = 13
+modeDropdownBtn.Font = Enum.Font.SourceSansBold
+modeDropdownBtn.Text = "Modo: " .. selectedMode
+modeDropdownBtn.ZIndex = 3
+modeDropdownBtn.Parent = RightScrolling
+
+local UICornerMD = Instance.new("UICorner")
+UICornerMD.CornerRadius = UDim.new(0, 6)
+UICornerMD.Parent = modeDropdownBtn
+
+local modesContainer = Instance.new("Frame")
+modesContainer.Size = UDim2.new(1, 0, 0, 96)
+modesContainer.BackgroundTransparency = 1
+modesContainer.Visible = false
+modesContainer.ZIndex = 3
+modesContainer.Parent = RightScrolling
+
+local UIListLayoutModes = Instance.new("UIListLayout")
+UIListLayoutModes.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayoutModes.Padding = UDim.new(0, 4)
+UIListLayoutModes.Parent = modesContainer
+
+modeDropdownBtn.MouseButton1Click:Connect(function()
+	modesContainer.Visible = not modesContainer.Visible
+end)
+
+local modesList = {"360°", "Tp3", "Tp4"}
+local modeButtons = {}
+
+for _, mName in ipairs(modesList) do
+	local mBtn = Instance.new("TextButton")
+	mBtn.Size = UDim2.new(1, 0, 0, 30)
+	mBtn.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	mBtn.BackgroundTransparency = 0.5
+	mBtn.BorderSizePixel = 2
+	mBtn.BorderColor3 = (mName == selectedMode) and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(0, 0, 0)
+	mBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	mBtn.TextSize = 13
+	mBtn.Font = Enum.Font.SourceSansBold
+	mBtn.Text = mName
+	mBtn.ZIndex = 3
+	mBtn.Parent = modesContainer
+	
+	local UICornerM = Instance.new("UICorner")
+	UICornerM.CornerRadius = UDim.new(0, 6)
+	UICornerM.Parent = mBtn
+	
+	mBtn.MouseButton1Click:Connect(function()
+		selectedMode = mName
+		modeDropdownBtn.Text = "Modo: " .. selectedMode
+		modesContainer.Visible = false
+		for _, btn in pairs(modeButtons) do
+			btn.BorderColor3 = Color3.fromRGB(0, 0, 0)
+		end
+		mBtn.BorderColor3 = Color3.fromRGB(0, 255, 0)
+	end)
+	
+	modeButtons[mName] = mBtn
+end
+
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, 0, 0, 36)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ToggleButton.BackgroundTransparency = 0.5
+ToggleButton.BorderSizePixel = 2
+ToggleButton.BorderColor3 = Color3.fromRGB(0, 0, 0)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+ToggleButton.TextSize = 14
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.Text = "STATUS: OFF"
+ToggleButton.ZIndex = 3
+ToggleButton.Parent = RightScrolling
+
+local UICornerTgl = Instance.new("UICorner")
+UICornerTgl.CornerRadius = UDim.new(0, 6)
+UICornerTgl.Parent = ToggleButton
+
+ToggleButton.MouseButton1Click:Connect(function()
+	isActionActive = not isActionActive
+	if isActionActive then
+		ToggleButton.Text = "STATUS: ON"
+		ToggleButton.TextColor3 = Color3.fromRGB(100, 255, 100)
+	else
+		ToggleButton.Text = "STATUS: OFF"
+		ToggleButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+		if LocalPlayer.Character then
+			local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+			if hum then
+				workspace.CurrentCamera.CameraSubject = hum
+			end
+		end
+	end
+end)
+
+local playerItems = {}
+
+local function createPlayerCard(p)
+	if p == LocalPlayer then return end
+	
+	local card = Instance.new("TextButton")
+	card.Size = UDim2.new(1, 0, 0, 44)
+	card.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	card.BackgroundTransparency = 0.5
+	card.BorderSizePixel = 0
+	card.Text = ""
+	card.ZIndex = 3
+	card.Parent = PlayersScrolling
+	
+	local UICornerCard = Instance.new("UICorner")
+	UICornerCard.CornerRadius = UDim.new(0, 6)
+	UICornerCard.Parent = card
+	
+	-- UIStroke garante uma borda nítida que contrasta bem e aparece perfeitamente
+	local cardStroke = Instance.new("UIStroke")
+	cardStroke.Name = "CardStroke"
+	cardStroke.Thickness = 1.5
+	cardStroke.Color = Color3.fromRGB(60, 60, 60) -- Borda sutil quando não selecionado
+	cardStroke.Parent = card
+	
+	local avatarImg = Instance.new("ImageLabel")
+	avatarImg.Size = UDim2.new(0, 36, 0, 36)
+	avatarImg.Position = UDim2.new(0, 4, 0.5, -18)
+	avatarImg.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	avatarImg.BackgroundTransparency = 1
+	avatarImg.BorderSizePixel = 0
+	avatarImg.ZIndex = 5
+	avatarImg.Parent = card
+	
+	local UICornerAv = Instance.new("UICorner")
+	UICornerAv.CornerRadius = UDim.new(0, 4)
+	UICornerAv.Parent = avatarImg
+	
+	task.spawn(function()
+		local thumbUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. p.UserId .. "&width=42&height=42&format=png"
+		avatarImg.Image = thumbUrl
+	end)
+	
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.new(1, -48, 0, 18)
+	nameLabel.Position = UDim2.new(0, 46, 0, 5)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameLabel.TextSize = 13
+	nameLabel.Font = Enum.Font.SourceSansBold
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	nameLabel.Text = p.DisplayName
+	nameLabel.ZIndex = 4
+	nameLabel.Parent = card
+	
+	local userLabel = Instance.new("TextLabel")
+	userLabel.Size = UDim2.new(1, -48, 0, 16)
+	userLabel.Position = UDim2.new(0, 46, 0, 22)
+	userLabel.BackgroundTransparency = 1
+	userLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+	userLabel.TextSize = 11
+	userLabel.Font = Enum.Font.SourceSans
+	userLabel.TextXAlignment = Enum.TextXAlignment.Left
+	userLabel.Text = "@" .. p.Name
+	userLabel.ZIndex = 4
+	userLabel.Parent = card
+	
+	card.MouseButton1Click:Connect(function()
+		selectedPlayer = p
+		for _, item in pairs(playerItems) do
+			if item.Card and item.Card.Parent then
+				local stroke = item.Card:FindFirstChild("CardStroke")
+				if stroke then
+					stroke.Color = Color3.fromRGB(60, 60, 60)
+					stroke.Thickness = 1.5
+				end
+			end
+		end
+		-- Borda destacada em destaque ao clicar
+		if cardStroke then
+			cardStroke.Color = Color3.fromRGB(255, 255, 255)
+			cardStroke.Thickness = 2.5
+		end
+	end)
+	
+	playerItems[p] = {Card = card, Name = p.Name, Display = p.DisplayName}
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+	createPlayerCard(p)
+end
+
+Players.PlayerAdded:Connect(function(p)
+	createPlayerCard(p)
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+	if p == selectedPlayer then
+		selectedPlayer = nil
+		isActionActive = false
+		ToggleButton.Text = "STATUS: OFF"
+		ToggleButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+		if LocalPlayer.Character then
+			local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+			if hum then
+				workspace.CurrentCamera.CameraSubject = hum
+			end
+		end
+	end
+	
+	if playerItems[p] then
+		if playerItems[p].Card then
+			playerItems[p].Card:Destroy()
+		end
+		playerItems[p] = nil
+	end
+end)
+
+SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+	local filter = SearchBox.Text:lower()
+	for p, item in pairs(playerItems) do
+		if item.Card and item.Card.Parent then
+			local matches = (p.Name:lower():find(filter) ~= nil) or (p.DisplayName:lower():find(filter) ~= nil) or tostring(p.UserId):find(filter) ~= nil
+			item.Card.Visible = matches
+		end
+	end
+end)
+
+RunService.RenderStepped:Connect(function(dt)
+	local contentCount = 0
+	for _, item in pairs(playerItems) do
+		if item.Card and item.Card.Visible then
+			contentCount = contentCount + 1
+		end
+	end
+	PlayersScrolling.CanvasSize = UDim2.new(0, 0, 0, contentCount * 48)
+	
+	local rightCount = 0
+	for _, child in ipairs(RightScrolling:GetChildren()) do
+		if child:IsA("GuiObject") and child.Visible then
+			rightCount = rightCount + child.AbsoluteSize.Y + 6
+		end
+	end
+	RightScrolling.CanvasSize = UDim2.new(0, 0, 0, rightCount)
+	
+	if isActionActive and selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local char = LocalPlayer.Character
+		if char and char:FindFirstChild("HumanoidRootPart") then
+			local myHrpt = char.HumanoidRootPart
+			local targetHrpt = selectedPlayer.Character.HumanoidRootPart
+			
+			local targetHum = selectedPlayer.Character:FindFirstChildOfClass("Humanoid")
+			if targetHum then
+				workspace.CurrentCamera.CameraSubject = targetHum
+			end
+			
+			local speed = tonumber(speedInput.Text) or 10
+			local dist = tonumber(distInput.Text) or 5
+			
+			local tPos = targetHrpt.Position
+			local goalPos = tPos
+			
+			if selectedMode == "360°" then
+				local tickVal = tick() * speed
+				local offsetX = math.cos(tickVal) * dist
+				local offsetZ = math.sin(tickVal) * dist
+				goalPos = tPos + Vector3.new(offsetX, 0, offsetZ)
+			elseif selectedMode == "Tp3" then
+				local tickVal = (tick() * (speed * 0.5)) % 3
+				local angle = math.floor(tickVal) * ((math.pi * 2) / 3)
+				local offsetX = math.cos(angle) * dist
+				local offsetZ = math.sin(angle) * dist
+				goalPos = tPos + Vector3.new(offsetX, 0, offsetZ)
+			elseif selectedMode == "Tp4" then
+				local tickVal = (tick() * (speed * 0.5)) % 4
+				local angle = math.floor(tickVal) * ((math.pi * 2) / 4)
+				local offsetX = math.cos(angle) * dist
+				local offsetZ = math.sin(angle) * dist
+				goalPos = tPos + Vector3.new(offsetX, 0, offsetZ)
+			end
+			
+			local currentPos = myHrpt.Position
+			local vectorToGoal = goalPos - currentPos
+			local distanceToGoal = vectorToGoal.Magnitude
+			
+			local travelSpeed = speed * 25
+			local maxMoveThisFrame = travelSpeed * dt
+			
+			if distanceToGoal > maxMoveThisFrame then
+				local nextPos = currentPos + (vectorToGoal.Unit * maxMoveThisFrame)
+				myHrpt.CFrame = CFrame.new(nextPos, tPos)
+			else
+				myHrpt.CFrame = CFrame.new(goalPos, tPos)
+			end
+		end
+	end
+end)
