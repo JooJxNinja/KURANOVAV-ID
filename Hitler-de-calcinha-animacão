@@ -151,8 +151,8 @@ layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 end)
 
 local tracks = {}
-local keybinds = {}
-local settingKeyForId = nil
+local keybinds = {} -- Tabela correta para armazenar keyCode -> dados da animação
+local activeBindBox = nil
 
 local function levantar()
 	humanoid.Sit = false
@@ -264,13 +264,16 @@ local function playAnimString(idString, btn, nome)
 	}
 end
 
+-- Único listener global para verificar as teclas de atalho corretamente
 UserInputService.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 
-	if settingKeyForId then
+	if activeBindBox then
 		if input.UserInputType == Enum.UserInputType.Keyboard then
-			keybinds[input.KeyCode] = settingKeyForId
-			settingKeyForId = nil
+			-- Remove atalho antigo se já existir para essa tecla
+			keybinds[input.KeyCode] = activeBindBox
+			activeBindBox.box.Text = input.KeyCode.Name
+			activeBindBox = nil
 		end
 		return
 	end
@@ -343,14 +346,8 @@ for _, info in ipairs(animacoes) do
 	Instance.new("UICorner", bindBox).CornerRadius = UDim.new(0,6)
 
 	bindBox.Focused:Connect(function()
-		settingKeyForId = { id = id, btn = frame, nome = nome }
+		activeBindBox = { id = id, btn = frame, nome = nome, box = bindBox }
 		bindBox.Text = "..."
-	end)
-
-	UserInputService.InputBegan:Connect(function(input)
-		if settingKeyForId and settingKeyForId.id == id and input.UserInputType == Enum.UserInputType.Keyboard then
-			bindBox.Text = input.KeyCode.Name
-		end
 	end)
 
 	local botaoFlutuante = nil
