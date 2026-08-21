@@ -1,0 +1,136 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+if playerGui:FindFirstChild("AnimGUI") then
+	playerGui.AnimGUI:Destroy()
+end
+
+local animacoes = {
+	{"MRBEAST MEME POINT","243656287"},
+	{"Segurar Bomba","94861246"},
+	{"Canhão Baixo","56153856"},
+	{"Canhão Alto","56146409"},
+	{"Agachar","287325678"},
+	{"Cobrir Rosto","183696478"},
+	{"Rezando","48137861"},
+	{"Chorando","180612465"},
+	{"Guitarra Tank","265084639"},
+	{"Equipar Espada","317460113"},
+	{"Golpe Alto","1098424552"},
+	{"BDB Staff","214744412"},
+	{"Bater","204062532"},
+	{"Agachar (Alt)","182724289"},
+	{"Dança Andando","429703734"},
+	{"Golpe","186934658"},
+	{"Beber Anim","61914540"},
+	{"Motocicleta Bloxster","185299570"},
+	{"Beber","29517689"},
+	{"Eptein","283545583"},
+	{"Abraço","283545583|225975820"},
+}
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "AnimGUI"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local function getHumanoid()
+	local character = player.Character or player.CharacterAdded:Wait()
+	return character:WaitForChild("Humanoid")
+end
+
+local humanoid = getHumanoid()
+player.CharacterAdded:Connect(function() humanoid = getHumanoid() end)
+
+local function dragify(obj)
+	local dragging, dragStart, startPos = false, nil, nil
+	obj.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = obj.Position
+		end
+	end)
+	obj.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			obj.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	obj.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+	end)
+end
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 100, 0, 30)
+toggleBtn.Position = UDim2.new(0, 50, 0, 200)
+toggleBtn.Text = "Anims"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.Parent = gui
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+dragify(toggleBtn)
+
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 350, 0, 300)
+main.Position = UDim2.new(0.5, -175, 0.5, -150)
+main.BackgroundColor3 = Color3.fromRGB(25,25,25)
+main.Visible = false
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 10)
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -10, 1, -10)
+scroll.Position = UDim2.new(0, 5, 0, 5)
+scroll.BackgroundTransparency = 1
+scroll.Parent = main
+
+local layout = Instance.new("UIGridLayout", scroll)
+layout.CellSize = UDim2.new(0, 160, 0, 40)
+layout.CellPadding = UDim2.new(0, 5, 0, 5)
+
+local tracks = {}
+
+local function playAnim(idString)
+	local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+	local ids = string.split(idString, "|")
+	local activeTracks = {}
+	
+	for _, id in ipairs(ids) do
+		local anim = Instance.new("Animation")
+		anim.AnimationId = "rbxassetid://"..id
+		local track = animator:LoadAnimation(anim)
+		track.Priority = Enum.AnimationPriority.Action
+		track:Play()
+		table.insert(activeTracks, track)
+	end
+	return activeTracks
+end
+
+for _, info in ipairs(animacoes) do
+	local nome, id = info[1], info[2]
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 160, 0, 40)
+	btn.Text = nome
+	btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Parent = scroll
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+	
+	btn.MouseButton1Click:Connect(function()
+		if tracks[btn] then
+			for _, t in ipairs(tracks[btn]) do t:Stop() end
+			tracks[btn] = nil
+			btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+		else
+			tracks[btn] = playAnim(id)
+			btn.BackgroundColor3 = Color3.fromRGB(80,80,255)
+		end
+	end)
+end
+
+toggleBtn.MouseButton1Click:Connect(function()
+	main.Visible = not main.Visible
+end)
