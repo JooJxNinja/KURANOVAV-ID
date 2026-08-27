@@ -1,0 +1,243 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+
+if CoreGui:FindFirstChild("CustomBypassGui") then
+	CoreGui.CustomBypassGui:Destroy()
+end
+
+local function zeroPrompt(prompt)
+	if prompt:IsA("ProximityPrompt") then
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 32
+	end
+end
+
+for _, obj in ipairs(workspace:GetDescendants()) do
+	zeroPrompt(obj)
+end
+
+workspace.DescendantAdded:Connect(zeroPrompt)
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CustomBypassGui"
+ScreenGui.Parent = CoreGui
+ScreenGui.ResetOnSpawn = false
+
+local TargetValueSpeed = 16
+local SpeedActive = false
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -160)
+MainFrame.Size = UDim2.new(0, 320, 0, 310)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Color3.fromRGB(60, 60, 75)
+MainStroke.Thickness = 1.5
+MainStroke.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.Parent = MainFrame
+UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 12)
+
+local PaddingSpacer = Instance.new("Frame")
+PaddingSpacer.Parent = MainFrame
+PaddingSpacer.BackgroundTransparency = 1
+PaddingSpacer.Size = UDim2.new(1, 0, 0, 20)
+PaddingSpacer.LayoutOrder = 1
+
+local BypassBtn = Instance.new("TextButton")
+BypassBtn.Name = "BypassBtn"
+BypassBtn.Parent = MainFrame
+BypassBtn.BackgroundColor3 = Color3.fromRGB(45, 125, 245)
+BypassBtn.BorderSizePixel = 0
+BypassBtn.Size = UDim2.new(0, 280, 0, 42)
+BypassBtn.Font = Enum.Font.GothamBold
+BypassBtn.Text = "Bypass Anti-Cheat"
+BypassBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BypassBtn.TextSize = 14
+BypassBtn.LayoutOrder = 2
+
+local BypassCorner = Instance.new("UICorner")
+BypassCorner.CornerRadius = UDim.new(0, 8)
+BypassCorner.Parent = BypassBtn
+
+BypassBtn.MouseButton1Click:Connect(function()
+	local character = LocalPlayer.Character
+	if character then
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		local currentCFrame = hrp and hrp.CFrame
+		local oldHumanoid = character:FindFirstChildOfClass("Humanoid")
+		
+		if oldHumanoid then
+			oldHumanoid:Destroy()
+			local newHumanoid = Instance.new("Humanoid")
+			newHumanoid.Parent = character
+			if currentCFrame and hrp then
+				hrp.CFrame = currentCFrame
+			end
+		end
+	end
+end)
+
+local SpeedContainer = Instance.new("Frame")
+SpeedContainer.Parent = MainFrame
+SpeedContainer.BackgroundTransparency = 1
+SpeedContainer.Size = UDim2.new(0, 280, 0, 42)
+SpeedContainer.LayoutOrder = 3
+
+local SpeedInput = Instance.new("TextBox")
+SpeedInput.Parent = SpeedContainer
+SpeedInput.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+SpeedInput.BorderSizePixel = 0
+SpeedInput.Position = UDim2.new(0, 0, 0, 0)
+SpeedInput.Size = UDim2.new(0, 135, 0, 42)
+SpeedInput.Font = Enum.Font.Gotham
+SpeedInput.PlaceholderText = "Velocidade..."
+SpeedInput.Text = tostring(TargetValueSpeed)
+SpeedInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedInput.TextSize = 14
+
+local InputCorner = Instance.new("UICorner")
+InputCorner.CornerRadius = UDim.new(0, 8)
+InputCorner.Parent = SpeedInput
+
+SpeedInput.FocusLost:Connect(function()
+	local num = tonumber(SpeedInput.Text)
+	if num then
+		TargetValueSpeed = num
+	else
+		SpeedInput.Text = tostring(TargetValueSpeed)
+	end
+end)
+
+local ToggleSpeedBtn = Instance.new("TextButton")
+ToggleSpeedBtn.Parent = SpeedContainer
+ToggleSpeedBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+ToggleSpeedBtn.BorderSizePixel = 0
+ToggleSpeedBtn.Position = UDim2.new(0, 145, 0, 0)
+ToggleSpeedBtn.Size = UDim2.new(0, 135, 0, 42)
+ToggleSpeedBtn.Font = Enum.Font.GothamBold
+ToggleSpeedBtn.Text = "Speed: OFF"
+ToggleSpeedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleSpeedBtn.TextSize = 14
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 8)
+ToggleCorner.Parent = ToggleSpeedBtn
+
+ToggleSpeedBtn.MouseButton1Click:Connect(function()
+	SpeedActive = not SpeedActive
+	if SpeedActive then
+		ToggleSpeedBtn.Text = "Speed: ON"
+		ToggleSpeedBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 80)
+	else
+		ToggleSpeedBtn.Text = "Speed: OFF"
+		ToggleSpeedBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	end
+end)
+
+if not (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) then
+	local KeybindContainer = Instance.new("Frame")
+	KeybindContainer.Parent = MainFrame
+	KeybindContainer.BackgroundTransparency = 1
+	KeybindContainer.Size = UDim2.new(0, 280, 0, 42)
+	KeybindContainer.LayoutOrder = 4
+
+	local KeybindLabel = Instance.new("TextLabel")
+	KeybindLabel.Parent = KeybindContainer
+	KeybindLabel.BackgroundTransparency = 1
+	KeybindLabel.Size = UDim2.new(0, 180, 0, 42)
+	KeybindLabel.Font = Enum.Font.Gotham
+	KeybindLabel.Text = "Tecla de Fechar:"
+	KeybindLabel.TextColor3 = Color3.fromRGB(180, 180, 195)
+	KeybindLabel.TextSize = 13
+	KeybindLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	local KeybindInput = Instance.new("TextButton")
+	KeybindInput.Parent = KeybindContainer
+	KeybindInput.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+	KeybindInput.BorderSizePixel = 0
+	KeybindInput.Position = UDim2.new(0, 190, 0, 0)
+	KeybindInput.Size = UDim2.new(0, 90, 0, 42)
+	KeybindInput.Font = Enum.Font.GothamBold
+	KeybindInput.Text = "RightControl"
+	KeybindInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+	KeybindInput.TextSize = 12
+
+	local KeyCorner = Instance.new("UICorner")
+	KeyCorner.CornerRadius = UDim.new(0, 8)
+	KeyCorner.Parent = KeybindInput
+
+	local selectedKey = Enum.KeyCode.RightControl
+	local waitingForKey = false
+
+	KeybindInput.MouseButton1Click:Connect(function()
+		waitingForKey = true
+		KeybindInput.Text = "..."
+	end)
+
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if waitingForKey then
+			if input.UserInputType == Enum.UserInputType.Keyboard then
+				selectedKey = input.KeyCode
+				KeybindInput.Text = selectedKey.Name
+				waitingForKey = false
+			end
+			return
+		end
+		
+		if not gameProcessed and input.KeyCode == selectedKey then
+			MainFrame.Visible = not MainFrame.Visible
+		end
+	end)
+end
+
+if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+	local FloatingBtn = Instance.new("TextButton")
+	FloatingBtn.Name = "MobileToggleBtn"
+	FloatingBtn.Parent = ScreenGui
+	FloatingBtn.BackgroundColor3 = Color3.fromRGB(45, 125, 245)
+	FloatingBtn.BorderSizePixel = 0
+	FloatingBtn.Position = UDim2.new(0, 20, 0.4, 0)
+	FloatingBtn.Size = UDim2.new(0, 50, 0, 50)
+	FloatingBtn.Font = Enum.Font.GothamBold
+	FloatingBtn.Text = "UI"
+	FloatingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	FloatingBtn.TextSize = 16
+	FloatingBtn.Draggable = true
+
+	local FloatCorner = Instance.new("UICorner")
+	FloatCorner.CornerRadius = UDim.new(1, 0)
+	FloatCorner.Parent = FloatingBtn
+
+	FloatingBtn.MouseButton1Click:Connect(function()
+		MainFrame.Visible = not MainFrame.Visible
+	end)
+end
+
+RunService.Heartbeat:Connect(function()
+	if SpeedActive and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = LocalPlayer.Character.HumanoidRootPart
+		local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		
+		if humanoid and humanoid.MoveDirection.Magnitude > 0 then
+			hrp.CFrame = hrp.CFrame + (humanoid.MoveDirection * (TargetValueSpeed / 45))
+		end
+	end
+end)
