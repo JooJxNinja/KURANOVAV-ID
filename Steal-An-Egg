@@ -1,0 +1,995 @@
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+
+local FolderName = "VoidSystem_Data"
+local ConfigFile = FolderName .. "/Configs/Bypass_Config.json"
+
+if makefolder then
+    pcall(function()
+        if not isfolder(FolderName) then makefolder(FolderName) end
+        if not isfolder(FolderName .. "/Images") then makefolder(FolderName .. "/Images") end
+        if not isfolder(FolderName .. "/Configs") then makefolder(FolderName .. "/Configs") end
+        if not isfolder(FolderName .. "/Logs") then makefolder(FolderName .. "/Logs") end
+    end)
+end
+
+local Config = {
+    BypassEnabled = false,
+    ToggleKey = "K",
+    HasLoadedBefore = false,
+    ActiveTab = "MAIN",
+    WindowPosition = {
+        XScale = 0.5,
+        XOffset = -190,
+        YScale = 0.3,
+        YOffset = -4
+    }
+}
+
+if readfile and isfile and isfile(ConfigFile) then
+    pcall(function()
+        local data = HttpService:JSONDecode(readfile(ConfigFile))
+        for k, v in pairs(data) do
+            if k == "WindowPosition" and type(v) == "table" then
+                for pk, pv in pairs(v) do Config.WindowPosition[pk] = pv end
+            else
+                Config[k] = v
+            end
+        end
+    end)
+end
+
+local function SaveConfig()
+    if writefile then
+        pcall(function()
+            writefile(ConfigFile, HttpService:JSONEncode(Config))
+        end)
+    end
+end
+
+local function PlayToggleSound()
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://12221967"
+    sound.Volume = 0.8
+    sound.Parent = SoundService
+    sound:Play()
+    sound.Ended:Connect(function()
+        sound:Destroy()
+    end)
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BypassVoidUI"
+ScreenGui.ResetOnSpawn = false
+
+if gethui then
+    ScreenGui.Parent = gethui()
+elseif syn and syn.protect_gui then
+    syn.protect_gui(ScreenGui)
+    ScreenGui.Parent = CoreGui
+else
+    ScreenGui.Parent = CoreGui
+end
+
+local RawUrl = "https://raw.githubusercontent.com/JooJxNinja/KURANOVAV-ID/refs/heads/main/file_000000002918720ea92188a1836db5bf.png"
+local IconAssetId = "rbxassetid://6031097225"
+
+if getcustomasset and writefile then
+    local fileName = FolderName .. "/Images/custom_void_icon.png"
+    if not isfile or not isfile(fileName) then
+        pcall(function()
+            writefile(fileName, game:HttpGet(RawUrl))
+        end)
+    end
+    if isfile and isfile(fileName) then
+        IconAssetId = getcustomasset(fileName)
+    end
+end
+
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+local ToggleBtnContainer = Instance.new("Frame")
+ToggleBtnContainer.Name = "ToggleBtnContainer"
+ToggleBtnContainer.Size = UDim2.new(0, 65, 0, 65)
+ToggleBtnContainer.Position = UDim2.new(0, 15, 0.4, 0)
+ToggleBtnContainer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtnContainer.BorderSizePixel = 0
+ToggleBtnContainer.Active = true
+ToggleBtnContainer.Visible = false
+ToggleBtnContainer.Parent = ScreenGui
+
+local ToggleContainerCorner = Instance.new("UICorner")
+ToggleContainerCorner.CornerRadius = UDim.new(1, 0)
+ToggleContainerCorner.Parent = ToggleBtnContainer
+
+local ToggleBtnGradient = Instance.new("UIGradient")
+ToggleBtnGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 30, 70)),
+    ColorSequenceKeypoint.new(0.3, Color3.fromRGB(120, 0, 30)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(0.7, Color3.fromRGB(120, 0, 30)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 30, 70))
+})
+ToggleBtnGradient.Rotation = 0
+ToggleBtnGradient.Parent = ToggleBtnContainer
+
+local InnerRing = Instance.new("Frame")
+InnerRing.Name = "InnerRing"
+InnerRing.Size = UDim2.new(1, -4, 1, -4)
+InnerRing.Position = UDim2.new(0, 2, 0, 2)
+InnerRing.BackgroundColor3 = Color3.fromRGB(15, 5, 10)
+InnerRing.BorderSizePixel = 0
+InnerRing.Parent = ToggleBtnContainer
+
+local InnerRingCorner = Instance.new("UICorner")
+InnerRingCorner.CornerRadius = UDim.new(1, 0)
+InnerRingCorner.Parent = InnerRing
+
+local ToggleMenuBtn = Instance.new("ImageButton")
+ToggleMenuBtn.Name = "ToggleMenuBtn"
+ToggleMenuBtn.Size = UDim2.new(1, -6, 1, -6)
+ToggleMenuBtn.Position = UDim2.new(0, 3, 0, 3)
+ToggleMenuBtn.BackgroundColor3 = Color3.fromRGB(25, 0, 8)
+ToggleMenuBtn.BorderSizePixel = 0
+ToggleMenuBtn.Image = IconAssetId
+ToggleMenuBtn.ImageColor3 = Color3.fromRGB(255, 230, 235)
+ToggleMenuBtn.Parent = InnerRing
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(1, 0)
+ToggleCorner.Parent = ToggleMenuBtn
+
+task.spawn(function()
+    while true do
+        TweenService:Create(InnerRing, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundColor3 = Color3.fromRGB(45, 5, 15)
+        }):Play()
+        task.wait(1.2)
+        TweenService:Create(InnerRing, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+            BackgroundColor3 = Color3.fromRGB(15, 5, 10)
+        }):Play()
+        task.wait(1.2)
+    end
+end)
+
+local NeonGlowBorder = Instance.new("Frame")
+NeonGlowBorder.Name = "NeonGlowBorder"
+NeonGlowBorder.Size = UDim2.new(0, 380, 0, 290)
+NeonGlowBorder.AnchorPoint = Vector2.new(0.5, 0.5)
+NeonGlowBorder.Position = UDim2.new(
+    Config.WindowPosition.XScale,
+    Config.WindowPosition.XOffset + 190,
+    Config.WindowPosition.YScale,
+    Config.WindowPosition.YOffset + 145
+)
+NeonGlowBorder.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+NeonGlowBorder.BorderSizePixel = 0
+NeonGlowBorder.Active = true
+NeonGlowBorder.Draggable = true
+NeonGlowBorder.Visible = false
+NeonGlowBorder.ClipsDescendants = false
+NeonGlowBorder.Parent = ScreenGui
+
+local NeonGradient = Instance.new("UIGradient")
+NeonGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 50)),
+    ColorSequenceKeypoint.new(0.25, Color3.fromRGB(15, 0, 0)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(0.75, Color3.fromRGB(15, 0, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 50))
+})
+NeonGradient.Rotation = 0
+NeonGradient.Parent = NeonGlowBorder
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(1, -6, 1, -6)
+MainFrame.Position = UDim2.new(0, 3, 0, 3)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = NeonGlowBorder
+
+local VoidBackground = Instance.new("Frame")
+VoidBackground.Name = "VoidBackground"
+VoidBackground.Size = UDim2.new(1, 0, 1, 0)
+VoidBackground.BackgroundColor3 = Color3.fromRGB(15, 0, 0)
+VoidBackground.BorderSizePixel = 0
+VoidBackground.ZIndex = 1
+VoidBackground.Parent = MainFrame
+
+local VoidGradient = Instance.new("UIGradient")
+VoidGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(180, 0, 0)),
+    ColorSequenceKeypoint.new(0.4, Color3.fromRGB(20, 0, 5)),
+    ColorSequenceKeypoint.new(0.8, Color3.fromRGB(5, 0, 0)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
+})
+VoidGradient.Rotation = 45
+VoidGradient.Parent = VoidBackground
+
+local ParticlesContainer = Instance.new("Frame")
+ParticlesContainer.Name = "ParticlesContainer"
+ParticlesContainer.Size = UDim2.new(1, 0, 1, 0)
+ParticlesContainer.BackgroundTransparency = 1
+ParticlesContainer.ZIndex = 2
+ParticlesContainer.Parent = MainFrame
+
+local Particles = {}
+for i = 1, 15 do
+    local p = Instance.new("Frame")
+    p.Size = UDim2.new(0, math.random(3, 8), 0, math.random(3, 8))
+    p.Position = UDim2.new(math.random(), 0, math.random(), 0)
+    p.BackgroundColor3 = (i % 3 == 0) and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(255, math.random(0, 50), math.random(0, 50))
+    p.BackgroundTransparency = math.random(3, 7) / 10
+    p.BorderSizePixel = 0
+    p.ZIndex = 2
+    p.Parent = ParticlesContainer
+    
+    table.insert(Particles, {Object = p, Speed = math.random(10, 30) / 1000})
+end
+
+local rot = 0
+local neonRot = 0
+RunService.Heartbeat:Connect(function(dt)
+    rot = (rot + 40 * dt) % 360
+    neonRot = (neonRot + 120 * dt) % 360
+    VoidGradient.Rotation = rot
+    NeonGradient.Rotation = neonRot
+    ToggleBtnGradient.Rotation = neonRot
+    
+    for _, pData in ipairs(Particles) do
+        local p = pData.Object
+        local newY = p.Position.Y.Scale - pData.Speed
+        if newY < -0.1 then
+            p.Position = UDim2.new(math.random(), 0, 1.1, 0)
+        else
+            p.Position = UDim2.new(p.Position.X.Scale, 0, newY, 0)
+        end
+    end
+end)
+
+local GuiIcon = Instance.new("ImageLabel")
+GuiIcon.Size = UDim2.new(0, 26, 0, 26)
+GuiIcon.Position = UDim2.new(0, 12, 0, 8)
+GuiIcon.BackgroundTransparency = 1
+GuiIcon.Image = IconAssetId
+GuiIcon.ZIndex = 3
+GuiIcon.Parent = MainFrame
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(0, 160, 0, 38)
+Title.Position = UDim2.new(0, 44, 0, 2)
+Title.BackgroundTransparency = 1
+Title.Text = "BYPASS VOID V1"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 13
+Title.Font = Enum.Font.Arcade
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 3
+Title.Parent = MainFrame
+
+local KeybindBtn = Instance.new("TextButton")
+KeybindBtn.Name = "KeybindBtn"
+KeybindBtn.Size = UDim2.new(0, 90, 0, 24)
+KeybindBtn.Position = UDim2.new(1, -102, 0, 9)
+KeybindBtn.BackgroundColor3 = Color3.fromRGB(30, 0, 0)
+KeybindBtn.BorderSizePixel = 0
+KeybindBtn.Text = "KEY: " .. tostring(Config.ToggleKey)
+KeybindBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeybindBtn.Font = Enum.Font.Arcade
+KeybindBtn.TextSize = 10
+KeybindBtn.ZIndex = 3
+KeybindBtn.Visible = not IsMobile
+KeybindBtn.Parent = MainFrame
+
+local TabBar = Instance.new("Frame")
+TabBar.Name = "TabBar"
+TabBar.Size = UDim2.new(0.92, 0, 0, 26)
+TabBar.Position = UDim2.new(0.04, 0, 0.16, 0)
+TabBar.BackgroundColor3 = Color3.fromRGB(20, 5, 10)
+TabBar.BorderSizePixel = 0
+TabBar.ZIndex = 3
+TabBar.Parent = MainFrame
+
+local TabBarCorner = Instance.new("UICorner")
+TabBarCorner.CornerRadius = UDim.new(0, 4)
+TabBarCorner.Parent = TabBar
+
+local MainTabBtn = Instance.new("TextButton")
+MainTabBtn.Name = "MainTabBtn"
+MainTabBtn.Size = UDim2.new(0.5, -3, 1, -4)
+MainTabBtn.Position = UDim2.new(0, 2, 0, 2)
+MainTabBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 30)
+MainTabBtn.BorderSizePixel = 0
+MainTabBtn.Text = "MAIN"
+MainTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MainTabBtn.Font = Enum.Font.Arcade
+MainTabBtn.TextSize = 10
+MainTabBtn.ZIndex = 4
+MainTabBtn.Parent = TabBar
+
+local MainTabCorner = Instance.new("UICorner")
+MainTabCorner.CornerRadius = UDim.new(0, 3)
+MainTabCorner.Parent = MainTabBtn
+
+local CreditsTabBtn = Instance.new("TextButton")
+CreditsTabBtn.Name = "CreditsTabBtn"
+CreditsTabBtn.Size = UDim2.new(0.5, -3, 1, -4)
+CreditsTabBtn.Position = UDim2.new(0.5, 1, 0, 2)
+CreditsTabBtn.BackgroundColor3 = Color3.fromRGB(30, 10, 15)
+CreditsTabBtn.BorderSizePixel = 0
+CreditsTabBtn.Text = "CREDITS"
+CreditsTabBtn.TextColor3 = Color3.fromRGB(150, 120, 125)
+CreditsTabBtn.Font = Enum.Font.Arcade
+CreditsTabBtn.TextSize = 10
+CreditsTabBtn.ZIndex = 4
+CreditsTabBtn.Parent = TabBar
+
+local CreditsTabCorner = Instance.new("UICorner")
+CreditsTabCorner.CornerRadius = UDim.new(0, 3)
+CreditsTabCorner.Parent = CreditsTabBtn
+
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(1, 0, 0.72, 0)
+TabContainer.Position = UDim2.new(0, 0, 0.28, 0)
+TabContainer.BackgroundTransparency = 1
+TabContainer.ZIndex = 3
+TabContainer.ClipsDescendants = true
+TabContainer.Parent = MainFrame
+
+local MainTabFrame = Instance.new("Frame")
+MainTabFrame.Name = "MainTabFrame"
+MainTabFrame.Size = UDim2.new(1, 0, 1, 0)
+MainTabFrame.Position = UDim2.new(0, 0, 0, 0)
+MainTabFrame.BackgroundTransparency = 1
+MainTabFrame.ZIndex = 3
+MainTabFrame.Visible = true
+MainTabFrame.Parent = TabContainer
+
+local CreditsTabFrame = Instance.new("Frame")
+CreditsTabFrame.Name = "CreditsTabFrame"
+CreditsTabFrame.Size = UDim2.new(1, 0, 1, 0)
+CreditsTabFrame.Position = UDim2.new(1, 0, 0, 0)
+CreditsTabFrame.BackgroundTransparency = 1
+CreditsTabFrame.ZIndex = 3
+CreditsTabFrame.Visible = false
+CreditsTabFrame.Parent = TabContainer
+
+local ViewportFrame3D = Instance.new("ViewportFrame")
+ViewportFrame3D.Name = "Viewport3D"
+ViewportFrame3D.Size = UDim2.new(0, 85, 0, 85)
+ViewportFrame3D.Position = UDim2.new(0.04, 0, 0.02, 0)
+ViewportFrame3D.BackgroundColor3 = Color3.fromRGB(15, 5, 8)
+ViewportFrame3D.BorderSizePixel = 0
+ViewportFrame3D.ZIndex = 4
+ViewportFrame3D.Parent = MainTabFrame
+
+local ViewportCorner = Instance.new("UICorner")
+ViewportCorner.CornerRadius = UDim.new(0, 8)
+ViewportCorner.Parent = ViewportFrame3D
+
+local ViewportCamera = Instance.new("Camera")
+ViewportCamera.Parent = ViewportFrame3D
+ViewportFrame3D.CurrentCamera = ViewportCamera
+
+local WorldModel3D = Instance.new("WorldModel")
+WorldModel3D.Parent = ViewportFrame3D
+
+local AREA_NAME = "AreaEggSlotsClient"
+local PARASITE_NAME = "MonsterParasiteVisual"
+local PART_NAME = "Part_Union"
+
+local function clearViewport3D()
+    for _, object in ipairs(WorldModel3D:GetChildren()) do
+        object:Destroy()
+    end
+end
+
+local function getBoundingInfo(object)
+    if object:IsA("Model") then
+        local cf, size = object:GetBoundingBox()
+        return cf, size
+    elseif object:IsA("BasePart") then
+        return object.CFrame, object.Size
+    end
+
+    local parts = {}
+    for _, descendant in ipairs(object:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+            table.insert(parts, descendant)
+        end
+    end
+
+    if #parts == 0 then return nil, nil end
+
+    local minX, minY, minZ = math.huge, math.huge, math.huge
+    local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+
+    for _, part in ipairs(parts) do
+        local p = part.Position
+        local s = part.Size / 2
+        minX = math.min(minX, p.X - s.X)
+        minY = math.min(minY, p.Y - s.Y)
+        minZ = math.min(minZ, p.Z - s.Z)
+        maxX = math.max(maxX, p.X + s.X)
+        maxY = math.max(maxY, p.Y + s.Y)
+        maxZ = math.max(maxZ, p.Z + s.Z)
+    end
+
+    local center = Vector3.new((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)
+    local size = Vector3.new(maxX - minX, maxY - minY, maxZ - minZ)
+
+    return CFrame.new(center), size
+end
+
+local function cloneParasite(parasite)
+    clearViewport3D()
+
+    local clone
+    if parasite:IsA("Model") or parasite:IsA("BasePart") then
+        clone = parasite:Clone()
+    else
+        clone = Instance.new("Model")
+        for _, descendant in ipairs(parasite:GetDescendants()) do
+            if descendant:IsA("BasePart") then
+                local partClone = descendant:Clone()
+                partClone.Parent = clone
+            end
+        end
+    end
+
+    if not clone then return end
+    clone.Parent = WorldModel3D
+
+    for _, descendant in ipairs(clone:GetDescendants()) do
+        if descendant:IsA("Script") or descendant:IsA("LocalScript") or descendant:IsA("ModuleScript") or descendant:IsA("ProximityPrompt") then
+            descendant:Destroy()
+        elseif descendant:IsA("BasePart") then
+            descendant.Anchored = true
+            descendant.CanCollide = false
+            descendant.CanTouch = false
+            descendant.CanQuery = false
+        end
+    end
+
+    local cf, size = getBoundingInfo(clone)
+    if not cf or not size then return end
+
+    if clone:IsA("Model") then
+        clone:PivotTo(CFrame.new(-cf.Position))
+    elseif clone:IsA("BasePart") then
+        clone.CFrame = CFrame.new(-cf.Position)
+    end
+
+    local largest = math.max(size.X, size.Y, size.Z)
+    local distance = math.max(largest * 1.1, 2)
+
+    ViewportCamera.CFrame = CFrame.lookAt(
+        Vector3.new(0, size.Y * 0.15, distance),
+        Vector3.new(0, 0, 0)
+    )
+end
+
+local function scan3D()
+    local area = Workspace:FindFirstChild(AREA_NAME)
+    if not area then return end
+
+    for _, container in ipairs(area:GetChildren()) do
+        if container:IsA("Model") or container:IsA("Folder") then
+            local parasite = container:FindFirstChild(PARASITE_NAME, true)
+            local part = container:FindFirstChild(PART_NAME, true)
+            if parasite and part then
+                cloneParasite(parasite)
+                break
+            end
+        end
+    end
+end
+
+Workspace.DescendantAdded:Connect(function(instance)
+    if instance.Name == PARASITE_NAME or instance.Name == PART_NAME then
+        task.defer(function()
+            scan3D()
+        end)
+    end
+end)
+
+scan3D()
+task.spawn(function()
+    while ScreenGui.Parent do
+        if #WorldModel3D:GetChildren() == 0 then
+            scan3D()
+        end
+        task.wait(2)
+    end
+end)
+
+local modelRotation = 0
+RunService.RenderStepped:Connect(function(delta)
+    local clone = WorldModel3D:GetChildren()[1]
+    if clone then
+        modelRotation += delta * 0.8
+        if clone:IsA("Model") then
+            clone:PivotTo(CFrame.Angles(0, modelRotation, 0))
+        elseif clone:IsA("BasePart") then
+            clone.CFrame = CFrame.Angles(0, modelRotation, 0)
+        end
+    end
+end)
+
+local BypassBtnBorder = Instance.new("Frame")
+BypassBtnBorder.Name = "BypassBtnBorder"
+BypassBtnBorder.Size = UDim2.new(0.92, -95, 0, 85)
+BypassBtnBorder.Position = UDim2.new(0.04, 95, 0.02, 0)
+BypassBtnBorder.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+BypassBtnBorder.BorderSizePixel = 0
+BypassBtnBorder.ZIndex = 3
+BypassBtnBorder.Parent = MainTabFrame
+
+local BypassBorderCorner = Instance.new("UICorner")
+BypassBorderCorner.CornerRadius = UDim.new(0, 8)
+BypassBorderCorner.Parent = BypassBtnBorder
+
+local BypassBorderGradient = Instance.new("UIGradient")
+BypassBorderGradient.Color = Config.BypassEnabled and ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 50)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 50))
+}) or ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 0, 15)),
+    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 40, 40)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 0, 15))
+})
+BypassBorderGradient.Parent = BypassBtnBorder
+
+local BypassBtn = Instance.new("TextButton")
+BypassBtn.Name = "BypassBtn"
+BypassBtn.Size = UDim2.new(1, -4, 1, -4)
+BypassBtn.Position = UDim2.new(0, 2, 0, 2)
+BypassBtn.BackgroundColor3 = Config.BypassEnabled and Color3.fromRGB(45, 0, 10) or Color3.fromRGB(15, 5, 8)
+BypassBtn.BorderSizePixel = 0
+BypassBtn.Text = ""
+BypassBtn.ZIndex = 4
+BypassBtn.ClipsDescendants = true
+BypassBtn.Parent = BypassBtnBorder
+
+local BypassCorner = Instance.new("UICorner")
+BypassCorner.CornerRadius = UDim.new(0, 6)
+BypassCorner.Parent = BypassBtn
+
+local BypassGlow = Instance.new("Frame")
+BypassGlow.Name = "BypassGlow"
+BypassGlow.Size = UDim2.new(1, 0, 1, 0)
+BypassGlow.BackgroundColor3 = Color3.fromRGB(255, 0, 50)
+BypassGlow.BackgroundTransparency = Config.BypassEnabled and 0.85 or 1
+BypassGlow.ZIndex = 4
+BypassGlow.Parent = BypassBtn
+
+local StatusPill = Instance.new("Frame")
+StatusPill.Name = "StatusPill"
+StatusPill.Size = UDim2.new(0, 40, 0, 20)
+StatusPill.Position = UDim2.new(0, 10, 0.5, -10)
+StatusPill.BackgroundColor3 = Config.BypassEnabled and Color3.fromRGB(120, 0, 20) or Color3.fromRGB(30, 10, 15)
+StatusPill.BorderSizePixel = 0
+StatusPill.ZIndex = 5
+StatusPill.Parent = BypassBtn
+
+local PillCorner = Instance.new("UICorner")
+PillCorner.CornerRadius = UDim.new(1, 0)
+PillCorner.Parent = StatusPill
+
+local StatusDot = Instance.new("Frame")
+StatusDot.Name = "StatusDot"
+StatusDot.Size = UDim2.new(0, 14, 0, 14)
+StatusDot.Position = Config.BypassEnabled and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+StatusDot.BackgroundColor3 = Config.BypassEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(100, 30, 40)
+StatusDot.BorderSizePixel = 0
+StatusDot.ZIndex = 6
+StatusDot.Parent = StatusPill
+
+local DotCorner = Instance.new("UICorner")
+DotCorner.CornerRadius = UDim.new(1, 0)
+DotCorner.Parent = StatusDot
+
+local BypassText = Instance.new("TextLabel")
+BypassText.Name = "BypassText"
+BypassText.Size = UDim2.new(1, -58, 1, 0)
+BypassText.Position = UDim2.new(0, 55, 0, 0)
+BypassText.BackgroundTransparency = 1
+BypassText.Text = "BYPASS FARM"
+BypassText.TextColor3 = Config.BypassEnabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(180, 150, 155)
+BypassText.Font = Enum.Font.Arcade
+BypassText.TextSize = 11
+BypassText.TextXAlignment = Enum.TextXAlignment.Left
+BypassText.ZIndex = 5
+BypassText.Parent = BypassBtn
+
+local CreditCard = Instance.new("Frame")
+CreditCard.Name = "CreditCard"
+CreditCard.Size = UDim2.new(0.92, 0, 0, 120)
+CreditCard.Position = UDim2.new(0.04, 0, 0.08, 0)
+CreditCard.BackgroundColor3 = Color3.fromRGB(20, 5, 10)
+CreditCard.BorderSizePixel = 0
+CreditCard.ZIndex = 3
+CreditCard.Parent = CreditsTabFrame
+
+local CreditCorner = Instance.new("UICorner")
+CreditCorner.CornerRadius = UDim.new(0, 8)
+CreditCorner.Parent = CreditCard
+
+local OwnerTitle = Instance.new("TextLabel")
+OwnerTitle.Size = UDim2.new(1, 0, 0, 20)
+OwnerTitle.Position = UDim2.new(0, 0, 0, 12)
+OwnerTitle.BackgroundTransparency = 1
+OwnerTitle.Text = "CREATED BY"
+OwnerTitle.TextColor3 = Color3.fromRGB(255, 0, 50)
+OwnerTitle.Font = Enum.Font.Arcade
+OwnerTitle.TextSize = 11
+OwnerTitle.ZIndex = 4
+OwnerTitle.Parent = CreditCard
+
+local TikTokLabel = Instance.new("TextLabel")
+TikTokLabel.Size = UDim2.new(1, 0, 0, 25)
+TikTokLabel.Position = UDim2.new(0, 0, 0, 38)
+TikTokLabel.BackgroundTransparency = 1
+TikTokLabel.Text = "@kuranovavoid"
+TikTokLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TikTokLabel.Font = Enum.Font.GothamBold
+TikTokLabel.TextSize = 16
+TikTokLabel.ZIndex = 4
+TikTokLabel.Parent = CreditCard
+
+local CopyBtn = Instance.new("TextButton")
+CopyBtn.Name = "CopyBtn"
+CopyBtn.Size = UDim2.new(0.7, 0, 0, 26)
+CopyBtn.Position = UDim2.new(0.15, 0, 0, 78)
+CopyBtn.BackgroundColor3 = Color3.fromRGB(40, 0, 10)
+CopyBtn.BorderSizePixel = 0
+CopyBtn.Text = "COPY TIKTOK @"
+CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CopyBtn.Font = Enum.Font.Arcade
+CopyBtn.TextSize = 9
+CopyBtn.ZIndex = 4
+CopyBtn.Parent = CreditCard
+
+local CopyCorner = Instance.new("UICorner")
+CopyCorner.CornerRadius = UDim.new(0, 4)
+CopyCorner.Parent = CopyBtn
+
+CopyBtn.MouseButton1Click:Connect(function()
+    if setclipboard then
+        setclipboard("@kuranovavoid")
+        CopyBtn.Text = "COPIED!"
+        CopyBtn.TextColor3 = Color3.fromRGB(0, 255, 120)
+        task.wait(1.5)
+        CopyBtn.Text = "COPY TIKTOK @"
+        CopyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+end)
+
+local tabIndices = {
+    [MainTabFrame] = 1,
+    [CreditsTabFrame] = 2
+}
+
+local currentTab = MainTabFrame
+local isTabAnimating = false
+
+local function SwitchTab(targetFrame, targetBtn)
+    if currentTab == targetFrame or isTabAnimating then return end
+    isTabAnimating = true
+
+    MainTabBtn.BackgroundColor3 = Color3.fromRGB(30, 10, 15)
+    MainTabBtn.TextColor3 = Color3.fromRGB(150, 120, 125)
+    CreditsTabBtn.BackgroundColor3 = Color3.fromRGB(30, 10, 15)
+    CreditsTabBtn.TextColor3 = Color3.fromRGB(150, 120, 125)
+
+    targetBtn.BackgroundColor3 = Color3.fromRGB(180, 0, 30)
+    targetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+    local currentIndex = tabIndices[currentTab]
+    local targetIndex = tabIndices[targetFrame]
+    
+    local movingRight = targetIndex > currentIndex
+
+    local targetStartPos = movingRight and UDim2.new(1, 0, 0, 0) or UDim2.new(-1, 0, 0, 0)
+    local currentEndPos = movingRight and UDim2.new(-1, 0, 0, 0) or UDim2.new(1, 0, 0, 0)
+
+    targetFrame.Position = targetStartPos
+    targetFrame.Visible = true
+
+    local tInfo = TweenInfo.new(0.35, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    TweenService:Create(currentTab, tInfo, {Position = currentEndPos}):Play()
+    local mainTween = TweenService:Create(targetFrame, tInfo, {Position = UDim2.new(0, 0, 0, 0)})
+    mainTween:Play()
+
+    mainTween.Completed:Connect(function()
+        if currentTab ~= targetFrame then
+            currentTab.Visible = false
+        end
+        currentTab = targetFrame
+        isTabAnimating = false
+    end)
+end
+
+MainTabBtn.MouseButton1Click:Connect(function() SwitchTab(MainTabFrame, MainTabBtn) end)
+CreditsTabBtn.MouseButton1Click:Connect(function() SwitchTab(CreditsTabFrame, CreditsTabBtn) end)
+
+RunService.Heartbeat:Connect(function(dt)
+    BypassBorderGradient.Rotation = (BypassBorderGradient.Rotation + 90 * dt) % 360
+end)
+
+NeonGlowBorder:GetPropertyChangedSignal("Position"):Connect(function()
+    if NeonGlowBorder.Visible and NeonGlowBorder.Size.X.Offset > 100 then
+        Config.WindowPosition.XScale = NeonGlowBorder.Position.X.Scale
+        Config.WindowPosition.XOffset = NeonGlowBorder.Position.X.Offset - 190
+        Config.WindowPosition.YScale = NeonGlowBorder.Position.Y.Scale
+        Config.WindowPosition.YOffset = NeonGlowBorder.Position.Y.Offset - 145
+        SaveConfig()
+    end
+end)
+
+local isWindowAnimating = false
+local isWindowOpen = false
+
+local function ToggleWindow()
+    if isWindowAnimating then return end
+    isWindowAnimating = true
+
+    PlayToggleSound()
+
+    local targetPos = UDim2.new(
+        Config.WindowPosition.XScale,
+        Config.WindowPosition.XOffset + 190,
+        Config.WindowPosition.YScale,
+        Config.WindowPosition.YOffset + 145
+    )
+
+    if not isWindowOpen then
+        NeonGlowBorder.Position = targetPos
+        NeonGlowBorder.Size = UDim2.new(0, 0, 0, 0)
+        NeonGlowBorder.Visible = true
+        ToggleBtnContainer.Visible = IsMobile
+        
+        local openInfo = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        TweenService:Create(NeonGlowBorder, openInfo, {
+            Size = UDim2.new(0, 380, 0, 290)
+        }):Play()
+
+        task.wait(0.5)
+        isWindowOpen = true
+    else
+        local closeInfo = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        TweenService:Create(NeonGlowBorder, closeInfo, {
+            Size = UDim2.new(0, 0, 0, 0)
+        }):Play()
+
+        task.wait(0.4)
+        NeonGlowBorder.Visible = false
+        isWindowOpen = false
+    end
+    isWindowAnimating = false
+end
+
+local btnDragging = false
+local btnDragStart = nil
+local btnStartPos = nil
+local movedDistance = 0
+
+ToggleMenuBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        btnDragging = true
+        btnDragStart = input.Position
+        btnStartPos = ToggleBtnContainer.Position
+        movedDistance = 0
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if btnDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - btnDragStart
+        movedDistance = delta.Magnitude
+        ToggleBtnContainer.Position = UDim2.new(
+            btnStartPos.X.Scale,
+            btnStartPos.X.Offset + delta.X,
+            btnStartPos.Y.Scale,
+            btnStartPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        btnDragging = false
+    end
+end)
+
+ToggleMenuBtn.MouseButton1Click:Connect(function()
+    if movedDistance < 5 then
+        ToggleWindow()
+    end
+end)
+
+local isBinding = false
+KeybindBtn.MouseButton1Click:Connect(function()
+    isBinding = true
+    KeybindBtn.Text = "PRESS..."
+    KeybindBtn.TextColor3 = Color3.fromRGB(255, 255, 0)
+end)
+
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if isBinding then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            Config.ToggleKey = input.KeyCode.Name
+            KeybindBtn.Text = "KEY: " .. tostring(Config.ToggleKey)
+            KeybindBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            isBinding = false
+            SaveConfig()
+        end
+        return
+    end
+
+    if not gpe and input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode.Name == Config.ToggleKey then
+            ToggleWindow()
+        end
+    end
+end)
+
+BypassBtn.MouseButton1Click:Connect(function()
+    PlayToggleSound()
+    Config.BypassEnabled = not Config.BypassEnabled
+    SaveConfig()
+    
+    local tInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    
+    if Config.BypassEnabled then
+        TweenService:Create(BypassBtn, tInfo, {BackgroundColor3 = Color3.fromRGB(45, 0, 10)}):Play()
+        TweenService:Create(BypassGlow, tInfo, {BackgroundTransparency = 0.85}):Play()
+        TweenService:Create(StatusPill, tInfo, {BackgroundColor3 = Color3.fromRGB(180, 0, 30)}):Play()
+        TweenService:Create(StatusDot, tInfo, {
+            Position = UDim2.new(1, -17, 0.5, -7),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        }):Play()
+        
+        BypassText.TextColor3 = Color3.fromRGB(255, 255, 255)
+        
+        BypassBorderGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 50)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 50))
+        })
+    else
+        TweenService:Create(BypassBtn, tInfo, {BackgroundColor3 = Color3.fromRGB(15, 5, 8)}):Play()
+        TweenService:Create(BypassGlow, tInfo, {BackgroundTransparency = 1}):Play()
+        TweenService:Create(StatusPill, tInfo, {BackgroundColor3 = Color3.fromRGB(30, 10, 15)}):Play()
+        TweenService:Create(StatusDot, tInfo, {
+            Position = UDim2.new(0, 3, 0.5, -7),
+            BackgroundColor3 = Color3.fromRGB(100, 30, 40)
+        }):Play()
+        
+        BypassText.TextColor3 = Color3.fromRGB(180, 150, 155)
+        
+        BypassBorderGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(80, 0, 15)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(40, 40, 40)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(80, 0, 15))
+        })
+    end
+end)
+
+if not Config.HasLoadedBefore then
+    local LoadingBorder = Instance.new("Frame")
+    LoadingBorder.Name = "LoadingBorder"
+    LoadingBorder.Size = UDim2.new(0, 310, 0, 145)
+    LoadingBorder.AnchorPoint = Vector2.new(0.5, 0.5)
+    LoadingBorder.Position = UDim2.new(0.5, 0, 0.5, 0)
+    LoadingBorder.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    LoadingBorder.BorderSizePixel = 0
+    LoadingBorder.Parent = ScreenGui
+
+    local LoadGlowGrad = Instance.new("UIGradient")
+    LoadGlowGrad.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 50)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 50))
+    })
+    LoadGlowGrad.Parent = LoadingBorder
+
+    local LoadFrame = Instance.new("Frame")
+    LoadFrame.Size = UDim2.new(1, -6, 1, -6)
+    LoadFrame.Position = UDim2.new(0, 3, 0, 3)
+    LoadFrame.BackgroundColor3 = Color3.fromRGB(12, 5, 8)
+    LoadFrame.BorderSizePixel = 0
+    LoadFrame.Parent = LoadingBorder
+
+    local LoadIcon = Instance.new("ImageLabel")
+    LoadIcon.Size = UDim2.new(0, 32, 0, 32)
+    LoadIcon.Position = UDim2.new(0.5, -16, 0.12, 0)
+    LoadIcon.BackgroundTransparency = 1
+    LoadIcon.Image = IconAssetId
+    LoadIcon.Parent = LoadFrame
+
+    local LoadTitle = Instance.new("TextLabel")
+    LoadTitle.Size = UDim2.new(1, 0, 0, 20)
+    LoadTitle.Position = UDim2.new(0, 0, 0.38, 0)
+    LoadTitle.BackgroundTransparency = 1
+    LoadTitle.Text = "LOADING VOID SYSTEM..."
+    LoadTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    LoadTitle.Font = Enum.Font.Arcade
+    LoadTitle.TextSize = 10
+    LoadTitle.Parent = LoadFrame
+
+    local BarBack = Instance.new("Frame")
+    BarBack.Size = UDim2.new(0.8, 0, 0, 10)
+    BarBack.Position = UDim2.new(0.1, 0, 0.6, 0)
+    BarBack.BackgroundColor3 = Color3.fromRGB(30, 0, 10)
+    BarBack.BorderSizePixel = 0
+    BarBack.Parent = LoadFrame
+
+    local BarBackCorner = Instance.new("UICorner")
+    BarBackCorner.CornerRadius = UDim.new(0, 4)
+    BarBackCorner.Parent = BarBack
+
+    local BarFill = Instance.new("Frame")
+    BarFill.Size = UDim2.new(0, 0, 1, 0)
+    BarFill.BackgroundColor3 = Color3.fromRGB(255, 0, 50)
+    BarFill.BorderSizePixel = 0
+    BarFill.Parent = BarBack
+
+    local BarFillCorner = Instance.new("UICorner")
+    BarFillCorner.CornerRadius = UDim.new(0, 4)
+    BarFillCorner.Parent = BarFill
+
+    local PercentText = Instance.new("TextLabel")
+    PercentText.Size = UDim2.new(1, 0, 0, 16)
+    PercentText.Position = UDim2.new(0, 0, 0.74, 0)
+    PercentText.BackgroundTransparency = 1
+    PercentText.Text = "0%"
+    PercentText.TextColor3 = Color3.fromRGB(180, 150, 155)
+    PercentText.Font = Enum.Font.Code
+    PercentText.TextSize = 9
+    PercentText.Parent = LoadFrame
+
+    task.spawn(function()
+        local duration = 2.2
+        local startTime = tick()
+        
+        while tick() - startTime < duration do
+            local alpha = (tick() - startTime) / duration
+            BarFill.Size = UDim2.new(alpha, 0, 1, 0)
+            PercentText.Text = tostring(math.floor(alpha * 100)) .. "%"
+            task.wait()
+        end
+        
+        BarFill.Size = UDim2.new(1, 0, 1, 0)
+        PercentText.Text = "100%"
+        task.wait(0.1)
+        
+        local fadeInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        TweenService:Create(LoadFrame, fadeInfo, {BackgroundTransparency = 1}):Play()
+        TweenService:Create(LoadTitle, fadeInfo, {TextTransparency = 1}):Play()
+        TweenService:Create(PercentText, fadeInfo, {TextTransparency = 1}):Play()
+        TweenService:Create(LoadIcon, fadeInfo, {ImageTransparency = 1}):Play()
+        TweenService:Create(BarBack, fadeInfo, {BackgroundTransparency = 1}):Play()
+        TweenService:Create(BarFill, fadeInfo, {BackgroundTransparency = 1}):Play()
+        
+        task.wait(0.5)
+        
+        Config.HasLoadedBefore = true
+        SaveConfig()
+        
+        LoadingBorder:Destroy()
+        ToggleWindow()
+    end)
+else
+    ToggleWindow()
+end
